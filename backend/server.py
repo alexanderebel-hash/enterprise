@@ -619,6 +619,122 @@ async def delete_ticket(ticket_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
     return {"message": "Ticket geloescht"}
 
+# --- Scribe Import ---
+VALID_CATEGORIES = ["troubleshooting", "anleitung", "prozess", "konfiguration", "aufzeichnung"]
+
+def parse_filename(filename: str):
+    """Parse [KATEGORIE] - Titel - Datum.ext pattern from filename."""
+    name = os.path.splitext(filename)[0]
+    # Try pattern: [KATEGORIE] - Titel - Datum
+    match = re.match(r'\[([^\]]+)\]\s*-\s*(.+?)(?:\s*-\s*(\d{4}[-_.]\d{2}[-_.]\d{2}))?\s*$', name)
+    if match:
+        raw_cat = match.group(1).strip().lower()
+        title = match.group(2).strip()
+        category = raw_cat if raw_cat in VALID_CATEGORIES else None
+        return {"title": title, "category_id": category}
+    # Try pattern: KATEGORIE - Titel
+    match = re.match(r'(\w+)\s*-\s*(.+)$', name)
+    if match:
+        raw_cat = match.group(1).strip().lower()
+        title = match.group(2).strip()
+        if raw_cat in VALID_CATEGORIES:
+            return {"title": title, "category_id": raw_cat}
+    return {"title": name, "category_id": None}
+
+def extract_file_content(content: bytes, filename: str) -> str:
+    """Extract text content from uploaded file based on extension."""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in ['.md', '.txt', '.markdown']:
+        return content.decode('utf-8', errors='replace')
+    elif ext in ['.html', '.htm']:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content.decode('utf-8', errors='replace'), 'html.parser')
+        for tag in soup(['script', 'style', 'nav', 'header', 'footer']):
+            tag.decompose()
+        return soup.get_text(separator='\n', strip=True)
+    elif ext == '.pdf':
+        import pymupdf
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        try:
+            doc = pymupdf.open(tmp_path)
+            text = '\n\n'.join(page.get_text() for page in doc)
+            doc.close()
+            return text
+        finally:
+            os.unlink(tmp_path)
+    raise ValueError(f"Nicht unterstuetztes Format: {ext}")
+
+@app.post("/api/articles/import")
+async def import_article(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Import a document file (Markdown, PDF, HTML) as a new knowledge article."""
+    require_captain(user)
+
+    allowed_ext = ['.md', '.txt', '.markdown', '.html', '.htm', '.pdf']
+    ext = os.path.splitext(file.filename or '')[1].lower()
+    if ext not in allowed_ext:
+        raise HTTPException(status_code=400, detail=f"Nicht unterstuetztes Format: {ext}. Erlaubt: {', '.join(allowed_ext)}")
+
+    content_bytes = await file.read()
+    if len(content_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Datei zu gross (max 10MB)")
+
+    # Extract text
+    try:
+        text_content = extract_file_content(content_bytes, file.filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not text_content.strip():
+        raise HTTPException(status_code=400, detail="Keine Textinhalte in der Datei gefunden")
+
+    # Parse filename for metadata
+    parsed = parse_filename(file.filename or 'import')
+    title = parsed["title"]
+    category_id = parsed["category_id"] or "anleitung"
+
+    # Generate summary via Claude
+    summary = ""
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"import-{str(uuid.uuid4())[:8]}",
+            system_message="Du bist ein IT-Dokumentationsassistent. Erstelle eine kurze, praegnante Zusammenfassung (2-3 Saetze) des folgenden Textes auf Deutsch. Fokus auf den praktischen Nutzen fuer IT-Mitarbeiter.",
+        )
+        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
+        summary = await chat.send_message(UserMessage(text=f"Erstelle eine Zusammenfassung fuer folgenden Text:\n\n{text_content[:4000]}"))
+    except Exception as e:
+        summary = f"(Auto-Import aus {file.filename})"
+
+    # Auto-detect tags from content
+    tag_keywords = {
+        "windows": "windows", "linux": "linux", "macos": "macos", "mac": "macos",
+        "drucker": "drucker", "netzwerk": "netzwerk", "wlan": "wlan", "wifi": "wlan",
+        "email": "email", "outlook": "outlook", "exchange": "exchange",
+        "vpn": "vpn", "firewall": "firewall", "backup": "backup",
+        "intune": "intune", "medifox": "medifox", "ipad": "ipad",
+    }
+    text_lower = text_content.lower()
+    tags = list(set(v for k, v in tag_keywords.items() if k in text_lower))
+
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "article_id": str(uuid.uuid4()),
+        "title": title,
+        "content": text_content,
+        "summary": summary,
+        "category_id": category_id,
+        "tags": tags,
+        "created_by": user["user_id"],
+        "created_at": now,
+        "updated_at": now,
+        "imported_from": file.filename,
+    }
+    await db.articles.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
 # --- Whisper Speech-to-Text ---
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
