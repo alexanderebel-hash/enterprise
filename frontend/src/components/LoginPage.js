@@ -50,11 +50,14 @@ export default function LoginPage() {
   const handleLogin = async (role) => {
     setSelected(role.id);
     setError('');
+    play('buttonPress');
     try {
       await login(role.user, role.pass);
+      play('accessGranted');
     } catch (e) {
       setError(e.message);
       setSelected(null);
+      play('alert');
     }
   };
 
