@@ -61,19 +61,18 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 
 ## Prioritized Backlog
 ### P0 (Critical)
-- None remaining
+- emergentintegrations → direkte anthropic/openai SDKs (wartet auf API-Keys)
 
 ### P1 (High)
-- File/image upload for articles
-- Notification system ("Roter Alarm") when new articles are created
+- Datei-/Bild-Upload fuer bestehende Artikel
+- "Roter Alarm" Benachrichtigung bei neuen Artikeln
 
 ### P2 (Medium)
-- Full-text search with highlighting
-- Article bookmarking for Nummer Eins
-- Export articles as PDF
-- Dark/light theme toggle
+- Volltextsuche mit Hervorhebung
+- Artikel-Lesezeichen fuer Nummer Eins
+- Export Artikel als PDF
 
 ### Next Tasks
-1. File upload for articles
-2. "Roter Alarm" notification system
+1. SDK-Migration (wenn API-Keys vorhanden)
+2. Datei-Upload fuer Artikel
 3. Artikel-Export als PDF
