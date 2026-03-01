@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&family=Roboto+Condensed:wght@300;400;500;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: 'Antonio', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111;
+}
+::-webkit-scrollbar-thumb {
+  background: #FF9900;
+  border-radius: 99px;
+}
+
+::selection {
+  background: #FF9900;
+  color: #000;
+}
+
+@keyframes lcars-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.lcars-blink {
+  animation: lcars-blink 1.5s ease-in-out infinite;
+}
+
+.lcars-number {
+  font-family: 'Antonio', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+/* LCARS Elbow shape */
+.lcars-elbow {
+  position: relative;
+}
+.lcars-elbow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  background: #000;
+  border-radius: 0 0 0 24px;
+}
+
+/* Chat typing effect */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.typing-cursor::after {
+  content: '|';
+  animation: lcars-blink 0.7s ease-in-out infinite;
+  color: #FF9900;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .lcars-sidebar {
+    display: none;
+  }
+  .lcars-sidebar.mobile-open {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: 280px;
+    height: 100vh;
+  }
+}
+
+/* Markdown styles */
+.article-content h2 {
+  color: #FF9900;
+  font-family: 'Antonio', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1.5rem;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #FF990033;
+}
+.article-content h3 {
+  color: #9999FF;
+  font-family: 'Antonio', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 1.15rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.article-content p {
+  font-family: 'Roboto Condensed', sans-serif;
+  line-height: 1.7;
+  margin-bottom: 0.75rem;
+  color: #ddd;
+}
+.article-content ul, .article-content ol {
+  font-family: 'Roboto Condensed', sans-serif;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #ccc;
+}
+.article-content li {
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
+}
+.article-content strong {
+  color: #FFCC99;
+}
+.article-content code {
+  background: #1a1a2e;
+  color: #FF9900;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-family: 'Roboto Condensed', sans-serif;
+}
+.article-content th {
+  background: #FF990022;
+  color: #FF9900;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid #FF990033;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+.article-content td {
+  padding: 8px 12px;
+  border: 1px solid #333;
+  color: #ccc;
+}
+.article-content hr {
+  border: none;
+  border-top: 1px solid #FF990033;
+  margin: 1.5rem 0;
+}
