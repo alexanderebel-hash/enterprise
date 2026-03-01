@@ -126,7 +126,7 @@ export default function LCARSLayout({ children, activePage, onNavigate }) {
           <div className="p-3">
             <button
               data-testid="logout-btn"
-              onClick={logout}
+              onClick={() => { play('panelOpen'); logout(); }}
               className="flex items-center gap-3 rounded-full px-4 py-2 w-full bg-lcars-red/20 text-lcars-red hover:bg-lcars-red hover:text-black transition-all duration-200"
             >
               <LogOut size={16} />
