@@ -490,7 +490,8 @@ class LCARSAPITester:
     def run_all_tests(self):
         """Run all backend tests in sequence"""
         print("=" * 80)
-        print("🖥️  LCARS BACKEND API TEST SUITE - ITERATION 5")
+        print("🖥️  LCARS BACKEND API TEST SUITE - ITERATION 6")
+        print("Testing Red Alert System & Enhanced Dashboard")
         print("=" * 80)
         
         # Core system tests
