@@ -63,6 +63,21 @@ export const api = {
 
   health: () => request('/api/health'),
 
+  getLocations: () => request('/api/locations'),
+  getLocation: (id) => request(`/api/locations/${id}`),
+  getTickets: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.location_id) q.set('location_id', params.location_id);
+    if (params.status) q.set('status', params.status);
+    return request(`/api/tickets?${q.toString()}`);
+  },
+  createTicket: (token, data) =>
+    request('/api/tickets', { method: 'POST', headers: getHeaders(token), body: JSON.stringify(data) }),
+  updateTicket: (token, id, data) =>
+    request(`/api/tickets/${id}`, { method: 'PUT', headers: getHeaders(token), body: JSON.stringify(data) }),
+  deleteTicket: (token, id) =>
+    request(`/api/tickets/${id}`, { method: 'DELETE', headers: getHeaders(token) }),
+
   transcribe: async (token, audioBlob) => {
     const formData = new FormData();
     formData.append('file', audioBlob, 'logbuch.webm');
