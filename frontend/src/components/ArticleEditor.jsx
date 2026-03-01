@@ -27,6 +27,51 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
 
+  // File import state
+  const [isImporting, setIsImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileDrop = useCallback(async (file) => {
+    if (!file) return;
+    const allowed = ['.md', '.txt', '.markdown', '.html', '.htm', '.pdf'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      setError(`Format nicht unterstuetzt: ${ext}. Erlaubt: ${allowed.join(', ')}`);
+      play('alert');
+      return;
+    }
+    setIsImporting(true);
+    setError('');
+    play('dataTransmit');
+    try {
+      const result = await api.importArticle(token, file);
+      setTitle(result.title || '');
+      setSummary(result.summary || '');
+      setContent(result.content || '');
+      setCategoryId(result.category_id || '');
+      setTags(result.tags || []);
+      play('computerAck');
+      setSuccess(`Datei "${file.name}" importiert und analysiert!`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (e) {
+      setError(`Importfehler: ${e.message}`);
+      play('alert');
+    } finally {
+      setIsImporting(false);
+    }
+  }, [token, play]);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleFileDrop(file);
+  }, [handleFileDrop]);
+
+  const onDragOver = useCallback((e) => { e.preventDefault(); setDragOver(true); }, []);
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
   useEffect(() => {
     api.getCategories().then(setCategories).catch(console.error);
     api.getStardate().then(d => setStardate(d.stardate)).catch(() => setStardate('47148.2'));
