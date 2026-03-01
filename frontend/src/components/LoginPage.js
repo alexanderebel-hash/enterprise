@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Shield, User } from 'lucide-react';
+import { getRandomQuote } from '../data/quotes';
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [quote, setQuote] = useState(getRandomQuote());
+  const [quoteFade, setQuoteFade] = useState(true);
+
+  // Rotate quotes every 12 seconds on login page
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteFade(false);
+      setTimeout(() => {
+        setQuote(getRandomQuote());
+        setQuoteFade(true);
+      }, 400);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
 
   const roles = [
     {
