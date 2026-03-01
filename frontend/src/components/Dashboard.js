@@ -18,6 +18,7 @@ export default function Dashboard({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState(getRandomQuote());
   const [quoteFade, setQuoteFade] = useState(true);
+  const { play } = useLCARSSound();
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
