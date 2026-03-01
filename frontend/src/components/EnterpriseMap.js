@@ -21,6 +21,73 @@ const HOTSPOT_POSITIONS = {
   aussentour:    { x: 8, y: 72, label: 'AUSSENMISSION' },
 };
 
+// Bridge station hotspots (% positions on bruecke_normal.jpg)
+const BRIDGE_STATIONS = {
+  viewscreen: {
+    x: 50, y: 25, w: 28, h: 25,
+    name: 'HAUPTBILDSCHIRM',
+    officer: 'System / Automatisch',
+    description: 'Externe Ansicht, Kommunikationsverbindungen, taktische Darstellungen und Sternenkarten.',
+    color: '#66FF66',
+    icon: Monitor,
+    shape: 'rect',
+  },
+  conn: {
+    x: 32, y: 62, w: 10, h: 16,
+    name: 'CONN',
+    officer: 'Lt. Cmdr. Data / Faehnrich Crusher',
+    description: 'Flugkontrolle - Navigation und Steuerung der Enterprise. Kursberechnungen, Warp-Geschwindigkeiten und Orbitalmanoever.',
+    color: '#9999FF',
+    icon: Navigation,
+    shape: 'rect',
+  },
+  ops: {
+    x: 58, y: 62, w: 10, h: 16,
+    name: 'OPS',
+    officer: 'Lt. Cmdr. Data',
+    description: 'Operationen - Systemverwaltung, Kommunikation und Sensorensteuerung. Koordination aller Schiffssysteme.',
+    color: '#9999FF',
+    icon: Settings,
+    shape: 'rect',
+  },
+  captain: {
+    x: 50, y: 66, w: 10, h: 12,
+    name: 'KOMMANDOSESSEL',
+    officer: 'Captain Jean-Luc Picard',
+    description: 'Kommandozentrale - Zentrale Befehlsgewalt ueber alle Systeme. Zugriff auf alle Stationen und Logbuch.',
+    color: '#FF3333',
+    icon: Star,
+    shape: 'circle',
+  },
+  tactical: {
+    x: 50, y: 82, w: 14, h: 14,
+    name: 'TAKTIK',
+    officer: 'Lt. Worf',
+    description: 'Taktik und Sicherheit - Phaserbatterien, Photonentorpedos, Schildmodulation und interne Sicherheit.',
+    color: '#FF9900',
+    icon: Shield,
+    shape: 'arc',
+  },
+  engineering: {
+    x: 14, y: 52, w: 14, h: 22,
+    name: 'TECHNIK',
+    officer: 'Lt. Cmdr. Geordi La Forge',
+    description: 'Technik-Station - Echtzeit-Systemdiagnose, Energieverteilung, Warpkern-Ueberwachung.',
+    color: '#FFCC99',
+    icon: Cpu,
+    shape: 'rect',
+  },
+  science: {
+    x: 86, y: 52, w: 14, h: 22,
+    name: 'WISSENSCHAFT',
+    officer: 'Counselor Deanna Troi',
+    description: 'Wissenschafts-Station - Langstreckensensoren, Analyse extraterrestrischer Phaenomene, empathische Beratung.',
+    color: '#CC99CC',
+    icon: Compass,
+    shape: 'rect',
+  },
+};
+
 export default function EnterpriseMap({ onNavigate }) {
   const { token, user } = useAuth();
   const { play } = useLCARSSound();
