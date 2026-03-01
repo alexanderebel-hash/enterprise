@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard';
 import KnowledgeBase from './components/KnowledgeBase';
 import ComputerChat from './components/ComputerChat';
 import ArticleEditor from './components/ArticleEditor';
+import EnterpriseMap from './components/EnterpriseMap';
 
 function AppContent() {
   const { user, token, checkAuth } = useAuth();
