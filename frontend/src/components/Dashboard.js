@@ -98,7 +98,7 @@ export default function Dashboard({ onNavigate }) {
               <button
                 key={cat.category_id}
                 data-testid={`cat-btn-${cat.category_id}`}
-                onClick={() => onNavigate('knowledge', { category: cat.category_id })}
+                onClick={() => { play('buttonPress'); onNavigate('knowledge', { category: cat.category_id }); }}
                 className="w-full flex items-center gap-3 rounded-full px-4 py-2 hover:bg-white/5 transition-all group"
               >
                 <div className={`w-8 h-8 rounded-full ${COLOR_MAP[cat.color] || 'bg-lcars-orange'} flex items-center justify-center text-sm`}>
