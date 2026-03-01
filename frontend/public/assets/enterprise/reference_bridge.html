@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USS Enterprise NCC-1701-D - Interactive Bridge</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      background: #000;
+      color: #FF9900;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* LCARS Header */
+    .lcars-header-bar {
+      width: 100%;
+      background: linear-gradient(90deg, #FF9900 0%, #FF9900 30%, transparent 30.5%, transparent 31.5%, #9999FF 32%, #9999FF 60%, transparent 60.5%, transparent 61.5%, #CC99CC 62%, #CC99CC 100%);
+      height: 8px;
+    }
+
+    .page-header {
+      text-align: center;
+      padding: 20px;
+      width: 100%;
+      background: linear-gradient(180deg, rgba(0,26,51,0.9) 0%, rgba(0,0,0,0.95) 100%);
+    }
+
+    .page-header h1 {
+      font-size: 2em;
+      color: #FF9900;
+      text-shadow: 0 0 15px rgba(255, 153, 0, 0.6);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .page-header .subtitle {
+      color: #9999FF;
+      font-size: 1em;
+      margin-top: 5px;
+      letter-spacing: 2px;
+    }
+
+    /* Bridge Container */
+    .bridge-container {
+      position: relative;
+      width: 90%;
+      max-width: 1400px;
+      aspect-ratio: 16/9;
+      overflow: hidden;
+      margin: 20px auto;
+      border: 2px solid #FF9900;
+      border-radius: 10px;
+      background: #0a0a2e;
+    }
+
+    .bridge-bg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Placeholder wenn kein Bild vorhanden */
+    .bridge-placeholder {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 30%, #0a0a2e 60%, #1a1a4e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .bridge-placeholder::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(100, 149, 237, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 60%, rgba(153, 153, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 60%, rgba(153, 153, 255, 0.08) 0%, transparent 40%);
+    }
+
+    .bridge-placeholder-text {
+      color: #9999FF;
+      font-size: 1.2em;
+      z-index: 1;
+      text-align: center;
+      opacity: 0.6;
+    }
+
+    .bridge-placeholder-text small {
+      display: block;
+      margin-top: 8px;
+      color: #666;
+      font-size: 0.7em;
+    }
+
+    /* Hotspot Base */
+    .hotspot {
+      position: absolute;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(255, 153, 0, 0.08);
+      z-index: 10;
+    }
+
+    .hotspot:hover {
+      background: rgba(255, 153, 0, 0.25);
+      box-shadow: 0 0 25px rgba(255, 153, 0, 0.7), inset 0 0 15px rgba(255, 153, 0, 0.15);
+      transform: scale(1.05);
+    }
+
+    .hotspot:active {
+      background: rgba(255, 153, 0, 0.5);
+    }
+
+    /* Station Label */
+    .hotspot::after {
+      content: attr(data-label);
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #FF9900;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 0 5px rgba(255, 153, 0, 0.8);
+    }
+
+    .hotspot:hover::after {
+      opacity: 1;
+    }
+
+    /* CONN Station (Front Left) */
+    .hotspot.conn {
+      left: 28%;
+      top: 58%;
+      width: 12%;
+      height: 20%;
+      border-color: #9999FF;
+    }
+
+    .hotspot.conn:hover {
+      box-shadow: 0 0 25px rgba(153, 153, 255, 0.7), inset 0 0 15px rgba(153, 153, 255, 0.15);
+    }
+
+    /* OPS Station (Front Right) */
+    .hotspot.ops {
+      left: 60%;
+      top: 58%;
+      width: 12%;
+      height: 20%;
+      border-color: #9999FF;
+    }
+
+    .hotspot.ops:hover {
+      box-shadow: 0 0 25px rgba(153, 153, 255, 0.7), inset 0 0 15px rgba(153, 153, 255, 0.15);
+    }
+
+    /* TACTICAL Station (Rear Center Arc) */
+    .hotspot.tactical {
+      left: 42%;
+      top: 75%;
+      width: 16%;
+      height: 18%;
+      border-color: #FF9900;
+      border-radius: 50% 50% 0 0;
+    }
+
+    .hotspot.tactical:hover {
+      box-shadow: 0 0 25px rgba(255, 153, 0, 0.7), inset 0 0 15px rgba(255, 153, 0, 0.15);
+    }
+
+    /* ENGINEERING Station (Left Side) */
+    .hotspot.engineering {
+      left: 8%;
+      top: 45%;
+      width: 15%;
+      height: 25%;
+      border-color: #FFCC99;
+    }
+
+    .hotspot.engineering:hover {
+      box-shadow: 0 0 25px rgba(255, 204, 153, 0.7), inset 0 0 15px rgba(255, 204, 153, 0.15);
+    }
+
+    /* SCIENCE Station (Right Side) */
+    .hotspot.science {
+      left: 77%;
+      top: 45%;
+      width: 15%;
+      height: 25%;
+      border-color: #CC99CC;
+    }
+
+    .hotspot.science:hover {
+      box-shadow: 0 0 25px rgba(204, 153, 204, 0.7), inset 0 0 15px rgba(204, 153, 204, 0.15);
+    }
+
+    /* CAPTAIN'S CHAIR (Center) */
+    .hotspot.captain {
+      left: 44%;
+      top: 62%;
+      width: 12%;
+      height: 15%;
+      border-color: #FF0000;
+      border-radius: 50%;
+    }
+
+    .hotspot.captain:hover {
+      box-shadow: 0 0 25px rgba(255, 0, 0, 0.7), inset 0 0 15px rgba(255, 0, 0, 0.15);
+    }
+
+    /* VIEWSCREEN (Front Center) */
+    .hotspot.viewscreen {
+      left: 35%;
+      top: 15%;
+      width: 30%;
+      height: 35%;
+      border-color: #00FF00;
+    }
+
+    .hotspot.viewscreen:hover {
+      box-shadow: 0 0 25px rgba(0, 255, 0, 0.7), inset 0 0 15px rgba(0, 255, 0, 0.15);
+    }
+
+    /* LCARS Modal */
+    .lcars-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .lcars-modal {
+      background: #000;
+      border: 3px solid #FF9900;
+      border-radius: 20px;
+      min-width: 350px;
+      max-width: 500px;
+      overflow: hidden;
+      animation: slideIn 0.3s ease;
+      box-shadow: 0 0 40px rgba(255, 153, 0, 0.4);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .lcars-modal-header {
+      padding: 15px 25px;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: #000;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .lcars-modal-header .lcars-elbow {
+      width: 40px;
+      height: 40px;
+      border-radius: 0 0 0 20px;
+      flex-shrink: 0;
+    }
+
+    .lcars-modal-content {
+      padding: 20px 25px;
+      border-top: 3px solid;
+      border-bottom: 3px solid;
+    }
+
+    .lcars-modal-content p {
+      margin: 10px 0;
+      font-size: 1em;
+      line-height: 1.6;
+    }
+
+    .lcars-modal-content strong {
+      color: #FFCC99;
+    }
+
+    .lcars-modal-content .officer-name {
+      font-size: 1.1em;
+    }
+
+    .lcars-close {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      background: #FF9900;
+      color: #000;
+      border: none;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: background 0.2s;
+    }
+
+    .lcars-close:hover {
+      background: #FFB84D;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 15px;
+      flex-wrap: wrap;
+    }
+
+    .lcars-btn {
+      padding: 10px 25px;
+      border: none;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+      color: #000;
+    }
+
+    .lcars-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px currentColor;
+    }
+
+    .btn-red-alert {
+      background: #FF0000;
+    }
+
+    .btn-red-alert.active {
+      animation: redBtnPulse 0.5s infinite;
+    }
+
+    @keyframes redBtnPulse {
+      0%, 100% { background: #FF0000; }
+      50% { background: #FF4444; box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+    }
+
+    .btn-labels {
+      background: #9999FF;
+    }
+
+    .btn-labels.active {
+      background: #BBBBFF;
+    }
+
+    .btn-sound {
+      background: #FFCC99;
+    }
+
+    /* Station Info Bar */
+    .station-info-bar {
+      width: 90%;
+      max-width: 1400px;
+      padding: 15px 25px;
+      background: rgba(0, 26, 51, 0.8);
+      border: 1px solid #333;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .station-count {
+      color: #9999FF;
+      font-size: 0.9em;
+    }
+
+    .station-count span {
+      color: #FF9900;
+      font-weight: bold;
+    }
+
+    /* Red Alert Effect */
+    body.red-alert {
+      animation: redAlertPulse 1s infinite;
+    }
+
+    @keyframes redAlertPulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.15) hue-rotate(-10deg); }
+    }
+
+    body.red-alert .bridge-container {
+      border-color: #FF0000;
+      box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+    }
+
+    body.red-alert .hotspot {
+      border-color: rgba(255, 0, 0, 0.6) !important;
+    }
+
+    body.red-alert .lcars-header-bar {
+      background: linear-gradient(90deg, #FF0000 0%, #FF0000 100%);
+      animation: redBarPulse 0.5s infinite;
+    }
+
+    @keyframes redBarPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Hotspot Labels Always Visible */
+    .show-labels .hotspot::after {
+      opacity: 1 !important;
+    }
+
+    .show-labels .hotspot {
+      background: rgba(255, 153, 0, 0.15);
+    }
+
+    /* LCARS Footer */
+    .lcars-footer {
+      width: 100%;
+      padding: 15px;
+      text-align: center;
+      color: #666;
+      font-size: 0.8em;
+      margin-top: auto;
+    }
+
+    .lcars-footer-bar {
+      width: 100%;
+      background: linear-gradient(90deg, #CC99CC 0%, #CC99CC 30%, transparent 30.5%, transparent 31.5%, #FFCC99 32%, #FFCC99 60%, transparent 60.5%, transparent 61.5%, #FF9900 62%, #FF9900 100%);
+      height: 8px;
+    }
+
+    /* Responsive: iPad (4:3) */
+    @media (max-width: 1024px) {
+      .bridge-container {
+        width: 95%;
+      }
+
+      .page-header h1 {
+        font-size: 1.5em;
+      }
+    }
+
+    /* Responsive: Mobile (Portrait) */
+    @media (orientation: portrait) and (max-width: 768px) {
+      .hotspot {
+        border-width: 3px;
+      }
+
+      .bridge-container {
+        width: 98%;
+      }
+
+      .page-header h1 {
+        font-size: 1.2em;
+        letter-spacing: 1px;
+      }
+
+      .lcars-modal {
+        min-width: 280px;
+        max-width: 90%;
+      }
+
+      .controls-bar {
+        gap: 8px;
+      }
+
+      .lcars-btn {
+        padding: 8px 16px;
+        font-size: 0.8em;
+      }
+
+      .station-info-bar {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="lcars-header-bar"></div>
+
+  <div class="page-header">
+    <h1>USS Enterprise NCC-1701-D</h1>
+    <p class="subtitle">Interactive Bridge Stations - LCARS Interface</p>
+  </div>
+
+  <div class="controls-bar">
+    <button class="lcars-btn btn-red-alert" onclick="toggleRedAlert()">Red Alert</button>
+    <button class="lcars-btn btn-labels" onclick="toggleLabels()">Station Labels</button>
+    <button class="lcars-btn btn-sound" onclick="toggleSound()">Sound: ON</button>
+  </div>
+
+  <div class="station-info-bar">
+    <div class="station-count"><span>7</span> Interactive Stations</div>
+    <div class="station-count">Click a station for details | Hover to highlight</div>
+  </div>
+
+  <div class="bridge-container" id="bridgeContainer">
+    <!-- Placeholder (wird durch echtes Bild ersetzt wenn vorhanden) -->
+    <div class="bridge-placeholder" id="bridgePlaceholder">
+      <p class="bridge-placeholder-text">
+        ENTERPRISE BRIDGE - LCARS VIEW
+        <small>Place "enterprise-bridge-lcars.png" in this folder to use a custom background</small>
+      </p>
+    </div>
+    <img src="enterprise-bridge-lcars.png" alt="Enterprise Bridge" class="bridge-bg" id="bridgeBg"
+         style="display:none;" onerror="this.style.display='none'; document.getElementById('bridgePlaceholder').style.display='flex';"
+         onload="this.style.display='block'; this.style.position='absolute'; this.style.top='0'; this.style.left='0'; document.getElementById('bridgePlaceholder').style.display='none';">
+
+    <!-- Hotspot Overlays -->
+    <div class="hotspot conn" data-station="conn" data-label="CONN"></div>
+    <div class="hotspot ops" data-station="ops" data-label="OPS"></div>
+    <div class="hotspot tactical" data-station="tactical" data-label="TACTICAL"></div>
+    <div class="hotspot engineering" data-station="engineering" data-label="ENGINEERING"></div>
+    <div class="hotspot science" data-station="science" data-label="SCIENCE"></div>
+    <div class="hotspot captain" data-station="captain" data-label="CAPTAIN"></div>
+    <div class="hotspot viewscreen" data-station="viewscreen" data-label="VIEWSCREEN"></div>
+  </div>
+
+  <div class="lcars-footer">
+    <p>LCARS Interface v7.4.1 | Stardate 43989.1 | USS Enterprise NCC-1701-D</p>
+  </div>
+
+  <div class="lcars-footer-bar"></div>
+
+  <script>
+    // ==========================================
+    // Station Data
+    // ==========================================
+    const stationData = {
+      conn: {
+        name: "CONN",
+        description: "Flight Control - Navigation und Steuerung der Enterprise. Kursberechnungen, Warp-Geschwindigkeiten und Orbitalmanoever.",
+        officer: "Lt. Commander Data / Ens. Wesley Crusher",
+        color: "#9999FF",
+        icon: "&#9733;"
+      },
+      ops: {
+        name: "OPS",
+        description: "Operations - Systemverwaltung, Kommunikation und Sensorensteuerung. Koordination aller Schiffssysteme.",
+        officer: "Lt. Commander Data",
+        color: "#9999FF",
+        icon: "&#9881;"
+      },
+      tactical: {
+        name: "TACTICAL",
+        description: "Taktik und Sicherheit - Phaserbatterien, Photonentorpedos, Schildmodulation und interne Sicherheit.",
+        officer: "Lt. Worf",
+        color: "#FF9900",
+        icon: "&#9760;"
+      },
+      engineering: {
+        name: "ENGINEERING",
+        description: "Technik-Station - Echtzeit-Systemdiagnose, Energieverteilung, Warpkern-Ueberwachung.",
+        officer: "Lt. Commander Geordi La Forge",
+        color: "#FFCC99",
+        icon: "&#9879;"
+      },
+      science: {
+        name: "SCIENCE",
+        description: "Wissenschafts-Station - Langstreckensensoren, Analyse extraterrestrischer Phaenomene, empathische Beratung.",
+        officer: "Counselor Deanna Troi",
+        color: "#CC99CC",
+        icon: "&#9883;"
+      },
+      captain: {
+        name: "CAPTAIN'S CHAIR",
+        description: "Kommandozentrale - Zentrale Befehlsgewalt ueber alle Systeme. Zugriff auf alle Stationen und Logbuch.",
+        officer: "Captain Jean-Luc Picard",
+        color: "#FF0000",
+        icon: "&#9733;"
+      },
+      viewscreen: {
+        name: "MAIN VIEWSCREEN",
+        description: "Hauptbildschirm - Externe Ansicht, Kommunikationsverbindungen, taktische Darstellungen und Sternenkarten.",
+        officer: "System / Automatisch",
+        color: "#00FF00",
+        icon: "&#9788;"
+      }
+    };
+
+    // ==========================================
+    // State
+    // ==========================================
+    let redAlertActive = false;
+    let labelsVisible = false;
+    let soundEnabled = true;
+
+    // ==========================================
+    // Audio Context for LCARS Beeps
+    // ==========================================
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+    }
+
+    function playLCARSBeep(frequency = 800, duration = 0.1) {
+      if (!soundEnabled) return;
+      initAudio();
+
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + duration);
+    }
+
+    function playStationBeep() {
+      playLCARSBeep(1200, 0.08);
+      setTimeout(() => playLCARSBeep(1500, 0.06), 80);
+    }
+
+    function playRedAlertSound() {
+      if (!soundEnabled) return;
+      initAudio();
+
+      // Red Alert: descending tone
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(300, audioCtx.currentTime + 0.5);
+
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.8);
+    }
+
+    // ==========================================
+    // Modal
+    // ==========================================
+    function showStationInfo(data) {
+      // Remove existing modal
+      const existing = document.querySelector('.lcars-modal-overlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'lcars-modal-overlay';
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+      });
+
+      overlay.innerHTML = `
+        <div class="lcars-modal">
+          <div class="lcars-modal-header" style="background: ${data.color}">
+            <span>${data.icon}</span> ${data.name}
+          </div>
+          <div class="lcars-modal-content" style="border-color: ${data.color}; color: ${data.color}">
+            <p><strong>Funktion:</strong> ${data.description}</p>
+            <p class="officer-name"><strong>Offizier:</strong> ${data.officer}</p>
+          </div>
+          <button class="lcars-close" style="background: ${data.color}" onclick="this.closest('.lcars-modal-overlay').remove()">
+            Schliessen
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+    }
+
+    // ==========================================
+    // Event Listeners
+    // ==========================================
+    document.querySelectorAll('.hotspot').forEach(hotspot => {
+      hotspot.addEventListener('click', function() {
+        const station = this.dataset.station;
+        const data = stationData[station];
+        playStationBeep();
+        showStationInfo(data);
+      });
+
+      hotspot.addEventListener('mouseenter', function() {
+        const station = this.dataset.station;
+        const data = stationData[station];
+        this.style.borderColor = data.color;
+        playLCARSBeep(1000, 0.05);
+      });
+
+      hotspot.addEventListener('mouseleave', function() {
+        const station = this.dataset.station;
+        const data = stationData[station];
+        // Reset to default border color
+        this.style.borderColor = '';
+      });
+    });
+
+    // Keyboard: Escape closes modal
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const modal = document.querySelector('.lcars-modal-overlay');
+        if (modal) modal.remove();
+        if (redAlertActive) toggleRedAlert();
+      }
+    });
+
+    // ==========================================
+    // Controls
+    // ==========================================
+    function toggleRedAlert() {
+      const btn = document.querySelector('.btn-red-alert');
+
+      if (!redAlertActive) {
+        document.body.classList.add('red-alert');
+        btn.classList.add('active');
+        btn.textContent = 'CANCEL RED ALERT';
+        playRedAlertSound();
+        redAlertActive = true;
+      } else {
+        document.body.classList.remove('red-alert');
+        btn.classList.remove('active');
+        btn.textContent = 'RED ALERT';
+        playLCARSBeep(500, 0.15);
+        redAlertActive = false;
+      }
+    }
+
+    function toggleLabels() {
+      const container = document.getElementById('bridgeContainer');
+      const btn = document.querySelector('.btn-labels');
+
+      labelsVisible = !labelsVisible;
+      container.classList.toggle('show-labels', labelsVisible);
+      btn.classList.toggle('active', labelsVisible);
+      btn.textContent = labelsVisible ? 'HIDE LABELS' : 'STATION LABELS';
+      playLCARSBeep(900, 0.08);
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.querySelector('.btn-sound');
+      btn.textContent = soundEnabled ? 'SOUND: ON' : 'SOUND: OFF';
+    }
+  </script>
+
+</body>
+</html>
