@@ -165,14 +165,16 @@ export default function SplashScreen({ onComplete }) {
   // Scan items appearing
   useEffect(() => {
     if (phase < 1) return;
+    play('scan');
     const timers = SCAN_ITEMS.map((item, i) =>
       setTimeout(() => {
         setVisibleItems(i + 1);
         setScanProgress(((i + 1) / SCAN_ITEMS.length) * 100);
+        play('dataTransmit');
       }, item.delay)
     );
     return () => timers.forEach(clearTimeout);
-  }, [phase]);
+  }, [phase, play]);
 
   // Quote after scan
   useEffect(() => {
