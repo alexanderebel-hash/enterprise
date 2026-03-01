@@ -93,5 +93,20 @@ export const api = {
     return res.json();
   },
 
+  importArticle: async (token, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API}/api/articles/import`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Importfehler' }));
+      throw new Error(err.detail || `Fehler ${res.status}`);
+    }
+    return res.json();
+  },
+
   getStardate: () => request('/api/stardate'),
 };
