@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Database, MessageSquare, PlusCircle,
   LogOut, Menu, X, ChevronRight
 } from 'lucide-react';
+import { useLCARSSound } from '../hooks/useLCARSSound';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'BRUECKE', icon: LayoutDashboard, color: 'bg-lcars-orange' },
