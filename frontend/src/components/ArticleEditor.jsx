@@ -305,7 +305,7 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".md,.txt,.markdown,.html,.htm,.pdf"
+          accept=".md,.txt,.markdown,.html,.htm,.pdf,.zip"
           className="hidden"
           data-testid="file-import-input"
           onChange={(e) => {
@@ -319,8 +319,8 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
             <>
               <Loader2 size={28} className="text-lcars-orange animate-spin flex-shrink-0" />
               <div>
-                <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">DATEI WIRD ANALYSIERT...</p>
-                <p className="font-lcars text-lcars-gray text-[9px] tracking-wider mt-1">CLAUDE GENERIERT ZUSAMMENFASSUNG</p>
+                <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">DATEIEN WERDEN ANALYSIERT...</p>
+                <p className="font-lcars text-lcars-gray text-[9px] tracking-wider mt-1">CLAUDE GENERIERT ZUSAMMENFASSUNGEN</p>
               </div>
             </>
           ) : (
@@ -331,13 +331,60 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
               <div>
                 <p className="font-lcars text-lcars-tan text-sm tracking-[0.2em]">SCRIBE-IMPORT</p>
                 <p className="font-lcars-body text-lcars-gray text-xs mt-1">
-                  Drag & Drop oder klicken — Markdown, PDF, HTML. Auto-Kategorisierung aus Dateiname: <span className="text-lcars-blue">[KATEGORIE] - Titel.ext</span>
+                  Drag & Drop oder klicken — Markdown, PDF, HTML oder <span className="text-lcars-orange">ZIP (Batch)</span>. Auto-Kategorisierung: <span className="text-lcars-blue">[KATEGORIE] - Titel.ext</span>
                 </p>
               </div>
             </>
           )}
         </div>
       </div>
+
+      {/* Batch Import Results */}
+      {batchResult && (
+        <div className="border-2 border-lcars-tan/40 rounded-2xl p-5 mb-6 animate-fade-in" data-testid="batch-result">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-lcars text-lcars-tan text-sm tracking-[0.2em]">IMPORT-BERICHT</h3>
+            <button data-testid="close-batch-result" onClick={() => setBatchResult(null)}
+              className="text-lcars-gray hover:text-white transition-colors"><X size={16} /></button>
+          </div>
+          <div className="flex gap-4 mb-3">
+            <div className="bg-lcars-tan/10 rounded-lg px-4 py-2 text-center">
+              <p className="font-lcars text-lcars-tan text-lg">{batchResult.imported_count}</p>
+              <p className="font-lcars text-lcars-gray text-[8px] tracking-wider">IMPORTIERT</p>
+            </div>
+            {batchResult.skipped_count > 0 && (
+              <div className="bg-lcars-orange/10 rounded-lg px-4 py-2 text-center">
+                <p className="font-lcars text-lcars-orange text-lg">{batchResult.skipped_count}</p>
+                <p className="font-lcars text-lcars-gray text-[8px] tracking-wider">UEBERSPRUNGEN</p>
+              </div>
+            )}
+            {batchResult.error_count > 0 && (
+              <div className="bg-lcars-red/10 rounded-lg px-4 py-2 text-center">
+                <p className="font-lcars text-lcars-red text-lg">{batchResult.error_count}</p>
+                <p className="font-lcars text-lcars-gray text-[8px] tracking-wider">FEHLER</p>
+              </div>
+            )}
+          </div>
+          {batchResult.results?.imported?.length > 0 && (
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {batchResult.results.imported.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-lcars-tan font-lcars text-[10px] tracking-wider">
+                  <FileText size={10} /> {item.title} <span className="text-lcars-gray">({item.category})</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {batchResult.results?.errors?.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {batchResult.results.errors.map((item, i) => (
+                <div key={i} className="text-lcars-red font-lcars text-[10px] tracking-wider">
+                  {item.file}: {item.error}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-5">
         {/* Title */}
