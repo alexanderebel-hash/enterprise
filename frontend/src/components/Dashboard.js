@@ -123,7 +123,7 @@ export default function Dashboard({ onNavigate }) {
               <button
                 key={art.article_id}
                 data-testid={`recent-art-${art.article_id}`}
-                onClick={() => onNavigate('article', { articleId: art.article_id })}
+                onClick={() => { play('buttonPress'); onNavigate('article', { articleId: art.article_id }); }}
                 className="w-full text-left rounded-lg px-4 py-3 hover:bg-white/5 transition-all border border-transparent hover:border-lcars-orange/20 group"
               >
                 <h3 className="text-white font-lcars text-sm tracking-wider group-hover:text-lcars-orange transition-colors">
