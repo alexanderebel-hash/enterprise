@@ -102,6 +102,9 @@ export default function EnterpriseMap({ onNavigate }) {
   const [hoverLocation, setHoverLocation] = useState(null);
   const [warpPhase, setWarpPhase] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
+  const [selectedStation, setSelectedStation] = useState(null);
+  const [hoverStation, setHoverStation] = useState(null);
+  const [showLabels, setShowLabels] = useState(false);
 
   useEffect(() => { loadLocations(); }, []);
 
