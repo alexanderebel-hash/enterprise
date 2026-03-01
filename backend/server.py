@@ -392,7 +392,8 @@ async def create_article(art: ArticleCreate, user: dict = Depends(get_current_us
     }
     await db.articles.insert_one(doc)
     doc.pop("_id", None)
-    return doc
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=doc, status_code=201)
 
 @app.put("/api/articles/{article_id}")
 async def update_article(article_id: str, art: ArticleUpdate, user: dict = Depends(get_current_user)):
