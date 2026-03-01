@@ -15,9 +15,23 @@ const TEXT_COLOR_MAP = {
 export default function Dashboard({ onNavigate }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [quote, setQuote] = useState(getRandomQuote());
+  const [quoteFade, setQuoteFade] = useState(true);
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  // Rotate quotes every 20 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteFade(false);
+      setTimeout(() => {
+        setQuote(getRandomQuote());
+        setQuoteFade(true);
+      }, 500);
+    }, 20000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
