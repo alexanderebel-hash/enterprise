@@ -56,6 +56,8 @@ function AppContent() {
     switch (page) {
       case 'dashboard':
         return <Dashboard onNavigate={navigate} />;
+      case 'enterprise':
+        return <EnterpriseMap onNavigate={navigate} />;
       case 'knowledge':
         return <KnowledgeBase onNavigate={navigate} initialCategory={pageParams.category} />;
       case 'article':
