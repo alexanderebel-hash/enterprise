@@ -1,0 +1,137 @@
+{
+  "design_system": {
+    "name": "Starfleet LCARS Interface",
+    "theme": "dark",
+    "tone": "Authoritative, Efficient, Futuristic, Functional",
+    "layout_philosophy": "The LCARS (Library Computer Access and Retrieval System) interface is characterized by a black background, flat colored panels with rounded corners, and a specific 'elbow' connector shape. The layout is modular, with a heavy emphasis on a left-sidebar navigation that curves into a top header. Content is contained within black voids surrounded by these colored bars.",
+    "typography": {
+      "primary_font": "Antonio, sans-serif",
+      "secondary_font": "Roboto Condensed, sans-serif",
+      "scale": {
+        "h1": "text-6xl uppercase tracking-widest font-bold",
+        "h2": "text-4xl uppercase tracking-wider font-semibold",
+        "h3": "text-2xl uppercase tracking-wide font-medium",
+        "body": "text-lg font-light tracking-normal",
+        "label": "text-sm uppercase tracking-widest font-bold",
+        "code": "font-mono text-sm"
+      },
+      "rules": [
+        "Headings MUST be uppercase.",
+        "Menu items MUST be uppercase and right-aligned within their pill shapes.",
+        "Content text (articles) should be readable standard sentence case.",
+        "LCARS numbers (e.g., 402, 12-432) should be scattered decoratively in small font sizes at the edges of panels."
+      ]
+    },
+    "colors": {
+      "palette": {
+        "lcars-black": "#000000",
+        "lcars-orange": "#FF9900",
+        "lcars-tan": "#FFCC99",
+        "lcars-pink": "#CC99CC",
+        "lcars-blue": "#9999FF",
+        "lcars-red": "#CC6666",
+        "lcars-gray": "#999999",
+        "lcars-pale-yellow": "#FFFF99"
+      },
+      "usage": {
+        "background": "bg-black",
+        "panel_border": "border-lcars-orange or border-lcars-blue",
+        "primary_action": "bg-lcars-orange hover:bg-lcars-tan text-black",
+        "secondary_action": "bg-lcars-blue hover:bg-lcars-pink text-black",
+        "alert": "bg-lcars-red text-black",
+        "text_primary": "text-lcars-orange",
+        "text_secondary": "text-lcars-blue",
+        "text_content": "text-white"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-6",
+      "element_gap": "gap-4",
+      "border_radius": {
+        "lcars_pill": "rounded-full",
+        "lcars_panel": "rounded-2xl",
+        "lcars_elbow": "rounded-bl-3xl"
+      }
+    },
+    "visual_enhancers": {
+      "textures": [
+        "Subtle grid lines in background (opacity 10%)",
+        "Scanline overlay (optional for retro feel)"
+      ],
+      "effects": [
+        "Buttons glow slightly on hover",
+        "Text typing effect for 'Computer' responses"
+      ],
+      "sounds": [
+        "Standard TNG beep on button press",
+        "Computer voice acknowledgment"
+      ]
+    },
+    "component_overrides": {
+      "Button": {
+        "base": "rounded-full uppercase font-bold tracking-widest px-8 py-2 transition-all duration-200",
+        "variants": {
+          "default": "bg-lcars-orange text-black hover:bg-lcars-tan",
+          "secondary": "bg-lcars-blue text-black hover:bg-lcars-pink",
+          "destructive": "bg-lcars-red text-black hover:bg-white",
+          "ghost": "bg-transparent text-lcars-orange border border-lcars-orange hover:bg-lcars-orange hover:text-black"
+        }
+      },
+      "Card": {
+        "base": "bg-black border-2 border-lcars-blue rounded-2xl p-6 relative overflow-hidden",
+        "header": "text-lcars-orange uppercase tracking-widest text-xl mb-4 border-b border-lcars-blue/30 pb-2"
+      },
+      "Input": {
+        "base": "bg-black border border-lcars-blue/50 text-white rounded-md focus:border-lcars-orange focus:ring-1 focus:ring-lcars-orange placeholder:text-gray-600"
+      },
+      "Sidebar": {
+        "structure": "Fixed left width (e.g., 250px). The top of the sidebar curves into the header (the 'Elbow').",
+        "items": "Right-aligned text inside colored pills. The active item connects to the content area."
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "Simple, geometric, stroke-width-2"
+    },
+    "layout_patterns": {
+      "dashboard": "Bento grid style but with LCARS dividers. Top section for status, mid for content, bottom for logs.",
+      "knowledge_base": "Split view: List on left (inside a panel), Details on right.",
+      "chat": "Center-focused terminal window. 'Computer' responses appear typing out."
+    },
+    "animations": {
+      "page_transition": "Fade in with slide up",
+      "panel_open": "Expand from center line",
+      "button_click": "Scale down 0.95"
+    }
+  },
+  "assets": {
+    "images": {
+      "background": "https://images.unsplash.com/photo-1759234491398-2f8843946bd9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHw0fHxzdGFycyUyMGdhbGF4eSUyMGRlZXAlMjBzcGFjZSUyMGJhY2tncm91bmQlMjB3YWxscGFwZXJ8ZW58MHx8fHwxNzcyMzY3MTcwfDA&ixlib=rb-4.1.0&q=85",
+      "avatars": {
+        "captain_p": "https://images.unsplash.com/photo-1648757766966-43d24bf7a264?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwxfHxiYWxkJTIwbWFuJTIwc3VpdCUyMHNlcmlvdXMlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzIzNjcxODR8MA&ixlib=rb-4.1.0&q=85",
+        "nummer_eins": "https://images.unsplash.com/photo-1758599543230-652cc6831d69?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxtYW4lMjBiZWFyZCUyMHN1aXQlMjBjb25maWRlbnQlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzIzNjcxODV8MA&ixlib=rb-4.1.0&q=85"
+      },
+      "logos": {
+        "federation": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Starfleet_command_emblem.svg/1200px-Starfleet_command_emblem.svg.png"
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. INITIAL SETUP: Since the frontend folder does not exist, initialize a standard React+Vite+Tailwind project in '/app/frontend'.",
+    "2. TAILWIND CONFIG: Extend the theme colors with the 'lcars-*' palette defined above. Add 'Antonio' and 'Roboto Condensed' to font families.",
+    "3. GLOBAL CSS: Set 'body { @apply bg-black text-white overflow-hidden; }'. LCARS apps typically don't scroll the whole page; they scroll internal panels.",
+    "4. COMPONENT LIBRARY: Use Shadcn UI for complex interactions (Dialog, Form, Select) but HEAVILY style them to remove the default border/radius and apply LCARS styles.",
+    "5. LAYOUT: Build a 'MainLayout' component that implements the LCARS Sidebar + Header Elbow. This is crucial for the theme.",
+    "6. SOUND: Add a simple useSound hook for button clicks (optional but recommended for immersion).",
+    "7. CHAT: The AI chat interface should look like a terminal. Use monospace fonts for the 'Computer' responses.",
+    "8. ROLE MANAGEMENT: Implement a simple Context for switching between Captain P and Nummer Eins.",
+    "9. LANGUAGE: All hardcoded text MUST be in German (e.g., 'ZUGRIFF', 'LOGBUCH', 'EINSTELLUNGEN')."
+  ],
+  "universal_guidelines": [
+    "Use 'data-testid' for all interactive elements.",
+    "Do not use gradients for backgrounds; LCARS is flat color.",
+    "Ensure high contrast between text (black) and background (orange/blue/purple) on buttons.",
+    "Respect the 'elbow' shape: a curved connection between horizontal and vertical bars.",
+    "Use uppercase text for all UI controls."
+  ]
+}
