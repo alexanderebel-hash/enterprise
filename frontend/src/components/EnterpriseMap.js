@@ -416,24 +416,135 @@ export default function EnterpriseMap({ onNavigate }) {
           <div className="absolute inset-0">
             <img src="/assets/enterprise/bruecke_normal.jpg" alt="Enterprise Bruecke"
               className="w-full h-full object-cover" style={{ background: '#000' }} />
-            {/* LCARS info overlay */}
-            <div className="absolute bottom-4 left-4 bg-black/70 border border-lcars-orange/30 rounded-xl px-4 py-3">
-              <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">HAUPTBRUECKE - DECK 1</p>
-              <p className="font-lcars text-lcars-gray text-[9px] tracking-[0.15em]">BAUMSCHULENSTRASSE 24 - ZENTRALE</p>
+
+            {/* Interactive station hotspots */}
+            <div className="absolute inset-0">
+              {Object.entries(BRIDGE_STATIONS).map(([id, station]) => {
+                const isHovered = hoverStation === id;
+                const StationIcon = station.icon;
+                return (
+                  <div key={id}
+                    data-testid={`bridge-station-${id}`}
+                    className="absolute cursor-pointer transition-all duration-300"
+                    style={{
+                      left: `${station.x - station.w / 2}%`,
+                      top: `${station.y - station.h / 2}%`,
+                      width: `${station.w}%`,
+                      height: `${station.h}%`,
+                      border: `2px solid ${isHovered || showLabels ? station.color + '90' : station.color + '30'}`,
+                      background: isHovered ? `${station.color}25` : `${station.color}08`,
+                      borderRadius: station.shape === 'circle' ? '50%' : station.shape === 'arc' ? '50% 50% 0 0' : '4px',
+                      boxShadow: isHovered ? `0 0 25px ${station.color}70, inset 0 0 15px ${station.color}15` : 'none',
+                      transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                      zIndex: isHovered ? 15 : 10,
+                    }}
+                    onClick={() => { play('scan'); setSelectedStation(id); }}
+                    onMouseEnter={() => { setHoverStation(id); play('buttonPress'); }}
+                    onMouseLeave={() => setHoverStation(null)}
+                  >
+                    {/* Station label on hover or showLabels */}
+                    <div className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap transition-all duration-200 pointer-events-none ${isHovered || showLabels ? 'opacity-100' : 'opacity-0'}`}
+                      style={{ bottom: '-24px' }}>
+                      <span className="font-lcars text-[9px] tracking-[0.15em] px-2 py-0.5 rounded bg-black/80"
+                        style={{ color: station.color, border: `1px solid ${station.color}40` }}>
+                        {station.name}
+                      </span>
+                    </div>
+
+                    {/* Corner icon indicator */}
+                    {(isHovered || showLabels) && (
+                      <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                        <StationIcon size={14} style={{ color: station.color }} className="drop-shadow-lg" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            {/* Quick ticket summary */}
-            <div className="absolute top-4 right-4 bg-black/80 border border-lcars-orange/30 rounded-xl px-4 py-3 max-w-xs">
-              <p className="font-lcars text-lcars-orange text-[10px] tracking-[0.2em] mb-2">AKTUELLE ANLIEGEN</p>
-              {locations.filter(l => l.open_tickets > 0).slice(0, 4).map(loc => (
-                <button key={loc.location_id} onClick={() => selectLocation(loc)}
-                  data-testid={`bridge-loc-${loc.location_id}`}
-                  className="flex items-center gap-2 w-full text-left py-1 hover:bg-white/10 rounded px-2 transition-all">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: loc.critical_tickets > 0 ? '#FF3333' : loc.color }} />
-                  <span className="font-lcars text-[9px] tracking-wider text-white/80 flex-1">{loc.name}</span>
-                  <span className="font-lcars text-[9px]" style={{ color: loc.critical_tickets > 0 ? '#FF3333' : '#FF9900' }}>{loc.open_tickets}</span>
-                </button>
-              ))}
+
+            {/* Station detail modal */}
+            {selectedStation && (() => {
+              const station = BRIDGE_STATIONS[selectedStation];
+              const StationIcon = station.icon;
+              return (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 animate-fade-in"
+                  data-testid="bridge-station-modal"
+                  onClick={(e) => { if (e.target === e.currentTarget) { play('navigate'); setSelectedStation(null); } }}>
+                  <div className="w-[420px] max-w-[90%] rounded-2xl overflow-hidden border-2 animate-fade-in"
+                    style={{ borderColor: station.color, boxShadow: `0 0 40px ${station.color}40` }}>
+                    {/* Modal header */}
+                    <div className="flex items-center gap-3 px-5 py-3" style={{ background: station.color }}>
+                      <StationIcon size={22} className="text-black" />
+                      <span className="font-lcars text-black text-lg tracking-[0.2em] font-bold">{station.name}</span>
+                    </div>
+                    {/* Modal body */}
+                    <div className="bg-black/95 px-5 py-4 space-y-3" style={{ borderTop: `3px solid ${station.color}` }}>
+                      <div>
+                        <p className="font-lcars text-[10px] tracking-[0.2em] text-lcars-gray mb-1">FUNKTION</p>
+                        <p className="font-lcars-body text-sm text-white/90 leading-relaxed">{station.description}</p>
+                      </div>
+                      <div>
+                        <p className="font-lcars text-[10px] tracking-[0.2em] text-lcars-gray mb-1">OFFIZIER</p>
+                        <p className="font-lcars text-sm tracking-wider" style={{ color: station.color }}>{station.officer}</p>
+                      </div>
+                    </div>
+                    {/* Modal close */}
+                    <button data-testid="close-station-modal"
+                      onClick={() => { play('navigate'); setSelectedStation(null); }}
+                      className="w-full py-3 font-lcars text-sm tracking-[0.2em] text-black font-bold transition-all hover:brightness-110"
+                      style={{ background: station.color }}>
+                      SCHLIESSEN
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Bridge controls bar */}
+            <div className="absolute bottom-4 left-4 flex items-center gap-3 z-20">
+              <div className="bg-black/70 border border-lcars-orange/30 rounded-xl px-4 py-3">
+                <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">HAUPTBRUECKE - DECK 1</p>
+                <p className="font-lcars text-lcars-gray text-[9px] tracking-[0.15em]">BAUMSCHULENSTRASSE 24 - ZENTRALE</p>
+              </div>
+              <button data-testid="toggle-labels-btn"
+                onClick={() => { play('buttonPress'); setShowLabels(!showLabels); }}
+                className={`rounded-full px-4 py-2 font-lcars text-[10px] tracking-[0.15em] transition-all ${showLabels ? 'bg-lcars-blue text-black' : 'bg-lcars-blue/20 text-lcars-blue hover:bg-lcars-blue/30'}`}>
+                {showLabels ? 'LABELS AUSBLENDEN' : 'STATIONEN ANZEIGEN'}
+              </button>
             </div>
+
+            {/* Station info on hover */}
+            {hoverStation && !selectedStation && (() => {
+              const station = BRIDGE_STATIONS[hoverStation];
+              return (
+                <div className="absolute top-4 right-4 bg-black/90 border rounded-xl px-4 py-3 min-w-[220px] z-20 animate-fade-in"
+                  data-testid="bridge-hover-tooltip"
+                  style={{ borderColor: `${station.color}60` }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-6 rounded-full" style={{ background: station.color }} />
+                    <span className="font-lcars text-sm tracking-wider" style={{ color: station.color }}>{station.name}</span>
+                  </div>
+                  <p className="text-lcars-gray font-lcars text-[9px] tracking-wider">{station.officer}</p>
+                  <p className="text-white/60 font-lcars-body text-[10px] mt-1 line-clamp-2">{station.description}</p>
+                </div>
+              );
+            })()}
+
+            {/* Quick ticket summary - repositioned */}
+            {!selectedStation && !hoverStation && (
+              <div className="absolute top-4 right-4 bg-black/80 border border-lcars-orange/30 rounded-xl px-4 py-3 max-w-xs z-20">
+                <p className="font-lcars text-lcars-orange text-[10px] tracking-[0.2em] mb-2">AKTUELLE ANLIEGEN</p>
+                {locations.filter(l => l.open_tickets > 0).slice(0, 4).map(loc => (
+                  <button key={loc.location_id} onClick={() => selectLocation(loc)}
+                    data-testid={`bridge-loc-${loc.location_id}`}
+                    className="flex items-center gap-2 w-full text-left py-1 hover:bg-white/10 rounded px-2 transition-all">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: loc.critical_tickets > 0 ? '#FF3333' : loc.color }} />
+                    <span className="font-lcars text-[9px] tracking-wider text-white/80 flex-1">{loc.name}</span>
+                    <span className="font-lcars text-[9px]" style={{ color: loc.critical_tickets > 0 ? '#FF3333' : '#FF9900' }}>{loc.open_tickets}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
