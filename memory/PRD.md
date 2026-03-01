@@ -39,15 +39,16 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] **Article Edit/Delete** from detail view (Captain only, with confirmation dialog)
 - [x] **Chat Session History** - VERLAUF panel to browse and load previous chat sessions
 - [x] **Stardate** calculation and display throughout the app
-- [x] **Interactive Enterprise Map** - SVG cross-section with 8 real-world locations as ship sections
+- [x] **Interactive Enterprise Map** - HD images for 3 views (Exterior, Cross-section, Bridge) with 8 real-world locations as ship sections
 - [x] **Location Ticket System** - Create/manage technical issues per location, ticket priorities & statuses
-- [x] **Exterior/Cross-section Views** - Starfield + internal deck view with warp core, grid lines
+- [x] **HD Enterprise Assets** - Seitenansicht, Querschnitt, Bruecke (normal/hotspot/red alert), Warp-Phasen images
 - [x] **Blinking Hotspots** - Locations with open tickets pulse/glow, critical issues in red
 - [x] **ROTER ALARM System** - Animated red alert banner on dashboard for critical tickets, with BESTAETIGT dismiss
 - [x] **Taktische Anzeige (Tactical Radar)** - Animated canvas radar sweep showing all locations as dots (red=critical, orange=open, gray=ok)
 - [x] **Standort-Status Live Feed** - Real-time overview of all locations with open tickets, auto-refresh every 30s
 - [x] **Enhanced Dashboard Stats** - Shows total open tickets, alarm status (ROT/GRUEN), location count
-- [x] 100% test pass rate across all iterations
+- [x] **Interaktive Bruecken-Stationen** (2026-03-01) - 7 klickbare Hotspots auf der Bruecke: CONN, OPS, TAKTIK, TECHNIK, WISSENSCHAFT, KOMMANDOSESSEL, HAUPTBILDSCHIRM. Mit Hover-Effekten, LCARS-Glow, Labels-Toggle, und Detail-Modals (Funktion, Offizier, Beschreibung)
+- [x] 100% test pass rate across all iterations (7 iterations)
 
 ## Login Credentials
 - Captain P: username `captain`, password `engage`
