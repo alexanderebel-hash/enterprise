@@ -43,6 +43,10 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] **Location Ticket System** - Create/manage technical issues per location, ticket priorities & statuses
 - [x] **Exterior/Cross-section Views** - Starfield + internal deck view with warp core, grid lines
 - [x] **Blinking Hotspots** - Locations with open tickets pulse/glow, critical issues in red
+- [x] **ROTER ALARM System** - Animated red alert banner on dashboard for critical tickets, with BESTAETIGT dismiss
+- [x] **Taktische Anzeige (Tactical Radar)** - Animated canvas radar sweep showing all locations as dots (red=critical, orange=open, gray=ok)
+- [x] **Standort-Status Live Feed** - Real-time overview of all locations with open tickets, auto-refresh every 30s
+- [x] **Enhanced Dashboard Stats** - Shows total open tickets, alarm status (ROT/GRUEN), location count
 - [x] 100% test pass rate across all iterations
 
 ## Login Credentials
