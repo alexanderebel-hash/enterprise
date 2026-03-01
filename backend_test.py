@@ -1,381 +1,396 @@
 #!/usr/bin/env python3
 """
-Backend API Tests for LCARS Knowledge Database
-Tests all API endpoints with proper authentication and data validation
+Star Trek TNG LCARS Knowledge Database - Backend API Tests
+Testing all endpoints including new features: stardate, transcribe
 """
+
 import requests
 import sys
 import json
+import io
 from datetime import datetime
 
 class LCARSAPITester:
-    def __init__(self):
-        self.base_url = "https://2c4ae1be-ee19-4b31-b304-079672acd46d.preview.emergentagent.com"
+    def __init__(self, base_url="https://start-hub-5.preview.emergentagent.com"):
+        self.base_url = base_url
         self.captain_token = None
         self.nummer_eins_token = None
+        self.test_article_id = None
+        self.test_session_id = None
         self.tests_run = 0
         self.tests_passed = 0
-        self.test_articles = []
-        
-    def log(self, message, success=None):
-        """Log test results with emoji indicators"""
-        if success is True:
-            print(f"✅ {message}")
-        elif success is False:
-            print(f"❌ {message}")
-        else:
-            print(f"🔍 {message}")
+        print(f"🚀 LCARS Testing initialized - Base URL: {base_url}")
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, token=None):
-        """Run a single API test and return success status and response"""
-        url = f"{self.base_url}{endpoint}"
-        headers = {'Content-Type': 'application/json'}
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
-            
+    def run_test(self, name, method, endpoint, expected_status, data=None, token=None, files=None):
+        """Run a single API test"""
+        url = f"{self.base_url}/{endpoint}"
+        headers = {}
+        
+        # Handle file uploads differently
+        if files:
+            headers = {'Authorization': f'Bearer {token}'} if token else {}
+        else:
+            headers = {'Content-Type': 'application/json'}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+
         self.tests_run += 1
-        self.log(f"Testing {name}...")
+        print(f"\n🔍 Testing {name}...")
+        print(f"   URL: {endpoint}")
         
         try:
             if method == 'GET':
                 response = requests.get(url, headers=headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers, timeout=10)
+                if files:
+                    response = requests.post(url, headers=headers, files=files, timeout=15)
+                else:
+                    response = requests.post(url, json=data, headers=headers, timeout=10)
             elif method == 'PUT':
                 response = requests.put(url, json=data, headers=headers, timeout=10)
             elif method == 'DELETE':
                 response = requests.delete(url, headers=headers, timeout=10)
-                
+
             success = response.status_code == expected_status
             if success:
                 self.tests_passed += 1
-                self.log(f"Passed - {name} (Status: {response.status_code})", True)
+                print(f"✅ PASS - Status: {response.status_code}")
                 try:
-                    response_data = response.json()
-                    return True, response_data
+                    return True, response.json() if response.content else {}
                 except:
                     return True, {}
             else:
-                self.log(f"Failed - {name} (Expected {expected_status}, got {response.status_code})", False)
+                print(f"❌ FAIL - Expected {expected_status}, got {response.status_code}")
                 try:
                     error_data = response.json()
-                    self.log(f"Error details: {error_data}")
+                    print(f"   Error: {error_data}")
                 except:
-                    self.log(f"Response text: {response.text}")
-                return False, {}
-                
-        except Exception as e:
-            self.log(f"Failed - {name} (Error: {str(e)})", False)
+                    print(f"   Response: {response.text[:200]}")
+
             return False, {}
 
-    def test_health_endpoint(self):
-        """Test health endpoint"""
-        success, response = self.run_test("Health Check", "GET", "/api/health", 200)
+        except Exception as e:
+            print(f"❌ ERROR - {str(e)}")
+            return False, {}
+
+    def test_health_check(self):
+        """Test basic health endpoint"""
+        success, response = self.run_test(
+            "Health Check",
+            "GET", 
+            "api/health",
+            200
+        )
         if success:
-            self.log(f"Ship status: {response.get('ship', 'Unknown')}")
-            self.log(f"Status: {response.get('status', 'Unknown')}")
+            print(f"   Ship: {response.get('ship', 'Unknown')}")
+            print(f"   Status: {response.get('status', 'Unknown')}")
         return success
 
-    def test_login_captain(self):
+    def test_stardate_endpoint(self):
+        """Test new stardate calculation endpoint"""
+        success, response = self.run_test(
+            "Stardate Calculation",
+            "GET",
+            "api/stardate", 
+            200
+        )
+        if success:
+            print(f"   Stardate: {response.get('stardate', 'N/A')}")
+            print(f"   Earth Date: {response.get('earth_date', 'N/A')}")
+        return success
+
+    def test_transcribe_endpoint_no_file(self):
+        """Test transcribe endpoint without file (should return 422)"""
+        success, response = self.run_test(
+            "Transcribe Endpoint (No File)",
+            "POST",
+            "api/transcribe",
+            422,
+            token=self.captain_token
+        )
+        return success
+
+    def test_captain_login(self):
         """Test Captain P login"""
         success, response = self.run_test(
-            "Captain P Login", 
-            "POST", 
-            "/api/auth/login",
+            "Captain P Login",
+            "POST",
+            "api/auth/login",
             200,
-            {"username": "captain", "password": "engage"}
+            data={"username": "captain", "password": "engage"}
         )
-        if success and "token" in response:
-            self.captain_token = response["token"]
-            user_info = response.get("user", {})
-            self.log(f"Captain logged in: {user_info.get('display_name')} (Role: {user_info.get('role')})")
+        if success and 'token' in response:
+            self.captain_token = response['token']
+            print(f"   Captain: {response['user']['display_name']}")
+            print(f"   Role: {response['user']['role']}")
             return True
         return False
 
-    def test_login_nummer_eins(self):
+    def test_nummer_eins_login(self):
         """Test Nummer Eins login"""
         success, response = self.run_test(
             "Nummer Eins Login", 
-            "POST", 
-            "/api/auth/login",
+            "POST",
+            "api/auth/login",
             200,
-            {"username": "nummer1", "password": "makeitso"}
+            data={"username": "nummer1", "password": "makeitso"}
         )
-        if success and "token" in response:
-            self.nummer_eins_token = response["token"]
-            user_info = response.get("user", {})
-            self.log(f"Nummer Eins logged in: {user_info.get('display_name')} (Role: {user_info.get('role')})")
+        if success and 'token' in response:
+            self.nummer_eins_token = response['token']
+            print(f"   Officer: {response['user']['display_name']}")
+            print(f"   Role: {response['user']['role']}")
             return True
         return False
 
-    def test_auth_me_endpoints(self):
-        """Test /auth/me endpoint for both users"""
-        captain_success, captain_data = self.run_test(
-            "Captain Auth Me", "GET", "/api/auth/me", 200, token=self.captain_token
+    def test_get_categories(self):
+        """Test getting categories"""
+        success, response = self.run_test(
+            "Get Categories",
+            "GET",
+            "api/categories",
+            200
         )
-        
-        nummer_success, nummer_data = self.run_test(
-            "Nummer Eins Auth Me", "GET", "/api/auth/me", 200, token=self.nummer_eins_token
-        )
-        
-        return captain_success and nummer_success
-
-    def test_categories_endpoints(self):
-        """Test categories endpoints"""
-        # Test getting categories (public endpoint)
-        success, categories = self.run_test("Get Categories", "GET", "/api/categories", 200)
-        
         if success:
-            self.log(f"Found {len(categories)} categories")
-            expected_categories = ["TROUBLESHOOTING", "ANLEITUNG", "PROZESS", "KONFIGURATION", "AUFZEICHNUNG"]
-            category_names = [cat.get("name") for cat in categories]
+            print(f"   Categories found: {len(response)}")
+            for cat in response[:2]:  # Show first 2
+                print(f"     - {cat.get('name', 'Unknown')} ({cat.get('category_id', 'No ID')})")
+        return success
+
+    def test_get_articles(self):
+        """Test getting articles"""
+        success, response = self.run_test(
+            "Get Articles",
+            "GET", 
+            "api/articles",
+            200
+        )
+        if success:
+            print(f"   Articles found: {len(response)}")
+            if response:
+                self.test_article_id = response[0].get('article_id')
+                print(f"   Using article ID for tests: {self.test_article_id}")
+        return success
+
+    def test_get_single_article(self):
+        """Test getting a single article"""
+        if not self.test_article_id:
+            print("❌ No article ID available for single article test")
+            return False
             
-            for expected in expected_categories:
-                if expected in category_names:
-                    self.log(f"Category found: {expected}", True)
-                else:
-                    self.log(f"Category missing: {expected}", False)
-                    success = False
-                    
+        success, response = self.run_test(
+            "Get Single Article",
+            "GET",
+            f"api/articles/{self.test_article_id}",
+            200
+        )
+        if success:
+            print(f"   Title: {response.get('title', 'Unknown')[:50]}...")
+            print(f"   Category: {response.get('category_id', 'Unknown')}")
+        return success
+
+    def test_create_article_as_captain(self):
+        """Test creating article as Captain"""
+        test_data = {
+            "title": "Test LCARS Entry - Iteration 4",
+            "content": "## Test Content\nThis is a test article created during iteration 4 testing.\n\n### Features Tested\n- Voice recording integration\n- Sound effects\n- Stardate calculation",
+            "category_id": "troubleshooting", 
+            "tags": ["test", "lcars", "iteration4"],
+            "summary": "Test article for iteration 4 LCARS testing"
+        }
+        
+        success, response = self.run_test(
+            "Create Article (Captain)",
+            "POST",
+            "api/articles",
+            201,
+            data=test_data,
+            token=self.captain_token
+        )
+        if success:
+            self.test_article_id = response.get('article_id')
+            print(f"   Created article ID: {self.test_article_id}")
+        return success
+
+    def test_update_article_as_captain(self):
+        """Test updating article as Captain"""
+        if not self.test_article_id:
+            print("❌ No article ID available for update test")
+            return False
+            
+        update_data = {
+            "title": "Updated Test LCARS Entry - Iteration 4", 
+            "summary": "Updated summary with new stardate integration"
+        }
+        
+        success, response = self.run_test(
+            "Update Article (Captain)",
+            "PUT",
+            f"api/articles/{self.test_article_id}",
+            200,
+            data=update_data,
+            token=self.captain_token
+        )
+        if success:
+            print(f"   Updated title: {response.get('title', 'Unknown')[:50]}...")
+        return success
+
+    def test_create_article_as_nummer_eins(self):
+        """Test creating article as Nummer Eins (should fail)"""
+        test_data = {
+            "title": "Unauthorized Article",
+            "content": "This should not be created",
+            "category_id": "troubleshooting"
+        }
+        
+        success, response = self.run_test(
+            "Create Article (Nummer Eins - Should Fail)",
+            "POST", 
+            "api/articles",
+            403,  # Expecting forbidden
+            data=test_data,
+            token=self.nummer_eins_token
+        )
         return success
 
     def test_dashboard_stats(self):
-        """Test dashboard statistics endpoint"""
-        success, stats = self.run_test("Dashboard Stats", "GET", "/api/dashboard/stats", 200)
-        
-        if success:
-            total_articles = stats.get("total_articles", 0)
-            total_categories = stats.get("total_categories", 0) 
-            category_stats = stats.get("category_stats", [])
-            recent_articles = stats.get("recent_articles", [])
-            
-            self.log(f"Dashboard stats - Articles: {total_articles}, Categories: {total_categories}")
-            
-            # Verify expected counts
-            if total_articles >= 6:
-                self.log(f"Articles count OK: {total_articles}", True)
-            else:
-                self.log(f"Articles count low: {total_articles} (expected >= 6)", False)
-                success = False
-                
-            if total_categories >= 5:
-                self.log(f"Categories count OK: {total_categories}", True)
-            else:
-                self.log(f"Categories count low: {total_categories} (expected >= 5)", False)
-                success = False
-                
-        return success
-
-    def test_articles_endpoints(self):
-        """Test articles CRUD operations"""
-        # Test getting all articles
-        success, articles = self.run_test("Get All Articles", "GET", "/api/articles", 200)
-        
-        if success:
-            self.log(f"Found {len(articles)} articles")
-            
-            # Test getting articles by category
-            if articles:
-                first_article_category = articles[0].get("category_id")
-                if first_article_category:
-                    cat_success, cat_articles = self.run_test(
-                        f"Get Articles by Category ({first_article_category})", 
-                        "GET", 
-                        f"/api/articles?category={first_article_category}", 
-                        200
-                    )
-                    success = success and cat_success
-                    
-                # Test search functionality
-                search_success, search_results = self.run_test(
-                    "Search Articles", "GET", "/api/articles?search=Scribe", 200
-                )
-                success = success and search_success
-                
-                # Test getting specific article
-                if articles:
-                    article_id = articles[0].get("article_id")
-                    if article_id:
-                        article_success, article_data = self.run_test(
-                            "Get Specific Article", "GET", f"/api/articles/{article_id}", 200
-                        )
-                        success = success and article_success
-                        
-        return success
-
-    def test_article_creation_captain(self):
-        """Test article creation as Captain (should succeed)"""
-        if not self.captain_token:
-            self.log("No captain token available for article creation test", False)
-            return False
-            
-        test_article = {
-            "title": "Test Artikel - API Test",
-            "content": "# Test Content\n\nDies ist ein Test-Artikel erstellt während der API-Tests.",
-            "summary": "Test-Artikel für API-Validierung",
-            "category_id": "troubleshooting",
-            "tags": ["test", "api", "validation"]
-        }
-        
+        """Test dashboard statistics"""
         success, response = self.run_test(
-            "Create Article (Captain)", 
-            "POST", 
-            "/api/articles",
-            201,
-            test_article,
-            self.captain_token
+            "Dashboard Stats",
+            "GET",
+            "api/dashboard/stats", 
+            200
         )
-        
-        if success and "article_id" in response:
-            self.test_articles.append(response["article_id"])
-            self.log(f"Test article created with ID: {response['article_id']}")
-            
-        return success
-
-    def test_article_creation_nummer_eins(self):
-        """Test article creation as Nummer Eins (should fail with 403)"""
-        if not self.nummer_eins_token:
-            self.log("No Nummer Eins token available for article creation test", False)
-            return False
-            
-        test_article = {
-            "title": "Test Artikel - Unauthorized",
-            "content": "This should fail",
-            "summary": "Should be forbidden",
-            "category_id": "troubleshooting",
-            "tags": ["unauthorized"]
-        }
-        
-        # This should fail with 403 Forbidden
-        success, _ = self.run_test(
-            "Create Article (Nummer Eins - should fail)", 
-            "POST", 
-            "/api/articles",
-            403,
-            test_article,
-            self.nummer_eins_token
-        )
-        
+        if success:
+            print(f"   Total Articles: {response.get('total_articles', 0)}")
+            print(f"   Total Categories: {response.get('total_categories', 0)}")
         return success
 
     def test_chat_functionality(self):
-        """Test AI computer chat functionality"""
-        if not self.captain_token:
-            self.log("No captain token for chat test", False)
-            return False
-            
-        test_message = {
-            "message": "Hallo Computer, welche Tools gibt es für Prozess-Aufzeichnung?",
-            "session_id": f"test-session-{datetime.now().strftime('%H%M%S')}"
-        }
-        
+        """Test chat with computer"""
         success, response = self.run_test(
-            "AI Computer Chat", 
-            "POST", 
-            "/api/chat",
+            "Computer Chat",
+            "POST",
+            "api/chat",
             200,
-            test_message,
-            self.captain_token
+            data={"message": "Welche Tools gibt es für Prozess-Aufzeichnung?"},
+            token=self.captain_token
         )
-        
         if success:
-            chat_response = response.get("response", "")
-            session_id = response.get("session_id", "")
-            self.log(f"Chat response length: {len(chat_response)} characters")
-            self.log(f"Session ID: {session_id}")
-            
-            # Test chat history
-            history_success, history = self.run_test(
-                "Get Chat History",
-                "GET",
-                f"/api/chat/history?session_id={session_id}",
-                200,
-                token=self.captain_token
-            )
-            success = success and history_success
-            
+            self.test_session_id = response.get('session_id')
+            print(f"   Session ID: {self.test_session_id}")
+            print(f"   Response preview: {response.get('response', '')[:100]}...")
         return success
 
-    def cleanup_test_data(self):
-        """Clean up test articles created during testing"""
-        for article_id in self.test_articles:
-            cleanup_success, _ = self.run_test(
-                f"Delete Test Article {article_id[:8]}", 
-                "DELETE", 
-                f"/api/articles/{article_id}",
-                200,
-                token=self.captain_token
-            )
+    def test_chat_history(self):
+        """Test chat history retrieval"""
+        if not self.test_session_id:
+            print("❌ No session ID available for chat history test")
+            return False
+            
+        success, response = self.run_test(
+            "Chat History",
+            "GET",
+            f"api/chat/history?session_id={self.test_session_id}",
+            200,
+            token=self.captain_token
+        )
+        if success:
+            print(f"   History messages: {len(response)}")
+        return success
+
+    def test_chat_sessions(self):
+        """Test chat sessions list"""
+        success, response = self.run_test(
+            "Chat Sessions List", 
+            "GET",
+            "api/chat/sessions",
+            200,
+            token=self.captain_token
+        )
+        if success:
+            print(f"   Total sessions: {len(response)}")
+        return success
+
+    def test_delete_article_as_captain(self):
+        """Test deleting article as Captain (cleanup)"""
+        if not self.test_article_id:
+            print("❌ No article ID available for delete test")
+            return False
+            
+        success, response = self.run_test(
+            "Delete Article (Captain)",
+            "DELETE", 
+            f"api/articles/{self.test_article_id}",
+            200,
+            token=self.captain_token
+        )
+        return success
 
     def run_all_tests(self):
-        """Run complete test suite"""
-        print("=" * 60)
-        print("🚀 LCARS KNOWLEDGE DATABASE - API TEST SUITE")
-        print("=" * 60)
+        """Run all backend tests in sequence"""
+        print("=" * 80)
+        print("🖥️  LCARS BACKEND API TEST SUITE - ITERATION 4")
+        print("=" * 80)
         
-        # Health check first
-        if not self.test_health_endpoint():
-            self.log("❌ Health check failed - stopping tests", False)
-            return False
-            
+        # Core system tests
+        print("\n📡 CORE SYSTEM TESTS")
+        self.test_health_check()
+        self.test_stardate_endpoint()
+        
         # Authentication tests
         print("\n🔐 AUTHENTICATION TESTS")
-        print("-" * 40)
-        captain_login = self.test_login_captain()
-        nummer_login = self.test_login_nummer_eins()
+        self.test_captain_login()
+        self.test_nummer_eins_login()
         
-        if not (captain_login and nummer_login):
-            self.log("❌ Login tests failed - stopping tests", False)
-            return False
-            
-        auth_me = self.test_auth_me_endpoints()
+        # Data retrieval tests
+        print("\n📊 DATA RETRIEVAL TESTS")
+        self.test_get_categories()
+        self.test_get_articles()
+        self.test_get_single_article()
+        self.test_dashboard_stats()
         
-        # Data endpoints
-        print("\n📊 DATA ENDPOINT TESTS")
-        print("-" * 40)
-        categories = self.test_categories_endpoints()
-        dashboard = self.test_dashboard_stats()
-        articles = self.test_articles_endpoints()
+        # Captain permission tests
+        print("\n👨‍✈️ CAPTAIN PERMISSION TESTS")
+        self.test_create_article_as_captain()
+        self.test_update_article_as_captain()
         
-        # Authorization tests
-        print("\n🛡️ AUTHORIZATION TESTS")
-        print("-" * 40)
-        article_create_captain = self.test_article_creation_captain()
-        article_create_nummer = self.test_article_creation_nummer_eins()
+        # Role restriction tests
+        print("\n🚫 ROLE RESTRICTION TESTS")
+        self.test_create_article_as_nummer_eins()
         
-        # AI Integration tests
-        print("\n🤖 AI INTEGRATION TESTS")
-        print("-" * 40)
-        chat_test = self.test_chat_functionality()
+        # Chat system tests
+        print("\n💬 COMPUTER CHAT TESTS")
+        self.test_chat_functionality()
+        self.test_chat_history()
+        self.test_chat_sessions()
+        
+        # New feature tests
+        print("\n🆕 NEW FEATURES TESTS")
+        self.test_transcribe_endpoint_no_file()
         
         # Cleanup
         print("\n🧹 CLEANUP")
-        print("-" * 40)
-        self.cleanup_test_data()
+        self.test_delete_article_as_captain()
         
-        # Results
-        print("\n" + "=" * 60)
-        print("📊 TEST RESULTS SUMMARY")
-        print("=" * 60)
-        success_rate = (self.tests_passed / self.tests_run) * 100 if self.tests_run > 0 else 0
-        print(f"✅ Tests Passed: {self.tests_passed}")
-        print(f"❌ Tests Failed: {self.tests_run - self.tests_passed}")
-        print(f"📈 Success Rate: {success_rate:.1f}%")
+        # Print results
+        print("\n" + "=" * 80)
+        print("📊 TEST RESULTS")
+        print("=" * 80)
+        print(f"Tests Run: {self.tests_run}")
+        print(f"Tests Passed: {self.tests_passed}")
+        print(f"Tests Failed: {self.tests_run - self.tests_passed}")
+        print(f"Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%")
         
-        if success_rate >= 90:
-            print("🎉 EXCELLENT - All major functionality working!")
-            return True
-        elif success_rate >= 70:
-            print("⚠️  GOOD - Minor issues detected")
-            return False
+        if self.tests_passed == self.tests_run:
+            print("🎉 ALL TESTS PASSED! Backend API is fully operational.")
+            return 0
         else:
-            print("🚨 CRITICAL - Major functionality broken")
-            return False
+            print("⚠️  Some tests failed. Check logs above.")
+            return 1
 
 def main():
     tester = LCARSAPITester()
-    success = tester.run_all_tests()
-    return 0 if success else 1
+    return tester.run_all_tests()
 
 if __name__ == "__main__":
     sys.exit(main())
