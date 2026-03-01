@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getRandomQuote } from '../data/quotes';
+import { useLCARSSound } from '../hooks/useLCARSSound';
 
 const SCAN_ITEMS = [
   { label: 'UMGEBUNGSSCAN', value: 'INITIALISIERT', delay: 400 },
