@@ -54,21 +54,16 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - None remaining
 
 ### P1 (High)
-- Article editing from article detail view
-- Article deletion confirmation dialog
 - File/image upload for articles
-- Chat session history and session switching
+- Notification system ("Roter Alarm") when new articles are created
 
 ### P2 (Medium)
 - Full-text search with highlighting
 - Article bookmarking for Nummer Eins
 - Export articles as PDF
-- User profile/settings page
 - Dark/light theme toggle
-- Sound effects (TNG beeps on button clicks)
 
 ### Next Tasks
-1. Add edit/delete buttons to article detail view
-2. Implement chat session persistence and history browsing
-3. Add file upload capability for articles
-4. Implement notification system for new articles
+1. File upload for articles
+2. "Roter Alarm" notification system
+3. Artikel-Export als PDF
