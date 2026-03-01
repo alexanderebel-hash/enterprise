@@ -78,8 +78,8 @@ async def seed_data():
     """Seed initial users, categories, and articles if empty."""
     user_count = await db.users.count_documents({})
     if user_count == 0:
-        captain_hash = pwd_context.hash("engage")
-        nummer_eins_hash = pwd_context.hash("makeitso")
+        captain_hash = pwd_context.hash(os.environ.get("SEED_CAPTAIN_PASSWORD"))
+        nummer_eins_hash = pwd_context.hash(os.environ.get("SEED_NUMMER_EINS_PASSWORD"))
         await db.users.insert_many([
             {
                 "user_id": "captain-p",
