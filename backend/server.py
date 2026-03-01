@@ -735,6 +735,103 @@ async def import_article(file: UploadFile = File(...), user: dict = Depends(get_
     doc.pop("_id", None)
     return doc
 
+@app.post("/api/articles/import-batch")
+async def import_articles_batch(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Import a ZIP file containing multiple documents as knowledge articles."""
+    require_captain(user)
+
+    if not file.filename or not file.filename.lower().endswith('.zip'):
+        raise HTTPException(status_code=400, detail="Nur ZIP-Dateien erlaubt")
+
+    content_bytes = await file.read()
+    if len(content_bytes) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="ZIP zu gross (max 50MB)")
+
+    import zipfile
+    import io
+
+    allowed_ext = {'.md', '.txt', '.markdown', '.html', '.htm', '.pdf'}
+    results = {"imported": [], "skipped": [], "errors": []}
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
+            for entry in zf.namelist():
+                # Skip directories and hidden/system files
+                if entry.endswith('/') or '/__MACOSX/' in entry or entry.startswith('__MACOSX'):
+                    continue
+                basename = os.path.basename(entry)
+                if not basename or basename.startswith('.'):
+                    continue
+                ext = os.path.splitext(basename)[1].lower()
+                if ext not in allowed_ext:
+                    results["skipped"].append({"file": basename, "reason": f"Format nicht unterstuetzt: {ext}"})
+                    continue
+
+                try:
+                    file_bytes = zf.read(entry)
+                    text_content = extract_file_content(file_bytes, basename)
+                    if not text_content.strip():
+                        results["skipped"].append({"file": basename, "reason": "Kein Textinhalt"})
+                        continue
+
+                    parsed = parse_filename(basename)
+                    title = parsed["title"]
+                    category_id = parsed["category_id"] or "anleitung"
+
+                    # Generate summary via Claude
+                    summary = ""
+                    try:
+                        chat = LlmChat(
+                            api_key=EMERGENT_LLM_KEY,
+                            session_id=f"batch-{str(uuid.uuid4())[:8]}",
+                            system_message="Du bist ein IT-Dokumentationsassistent. Erstelle eine kurze, praegnante Zusammenfassung (2-3 Saetze) des folgenden Textes auf Deutsch. Fokus auf den praktischen Nutzen fuer IT-Mitarbeiter.",
+                        )
+                        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
+                        summary = await chat.send_message(UserMessage(text=f"Erstelle eine Zusammenfassung:\n\n{text_content[:4000]}"))
+                    except Exception:
+                        summary = f"(Auto-Import aus {basename})"
+
+                    # Auto-detect tags
+                    tag_keywords = {
+                        "windows": "windows", "linux": "linux", "macos": "macos", "mac": "macos",
+                        "drucker": "drucker", "netzwerk": "netzwerk", "wlan": "wlan", "wifi": "wlan",
+                        "email": "email", "outlook": "outlook", "exchange": "exchange",
+                        "vpn": "vpn", "firewall": "firewall", "backup": "backup",
+                        "intune": "intune", "medifox": "medifox", "ipad": "ipad",
+                    }
+                    text_lower = text_content.lower()
+                    tags = list(set(v for k, v in tag_keywords.items() if k in text_lower))
+
+                    now = datetime.now(timezone.utc).isoformat()
+                    doc = {
+                        "article_id": str(uuid.uuid4()),
+                        "title": title,
+                        "content": text_content,
+                        "summary": summary,
+                        "category_id": category_id,
+                        "tags": tags,
+                        "created_by": user["user_id"],
+                        "created_at": now,
+                        "updated_at": now,
+                        "imported_from": basename,
+                    }
+                    await db.articles.insert_one(doc)
+                    doc.pop("_id", None)
+                    results["imported"].append({"file": basename, "title": title, "category": category_id, "article_id": doc["article_id"]})
+                except Exception as e:
+                    results["errors"].append({"file": basename, "error": str(e)})
+
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Ungueltige ZIP-Datei")
+
+    return {
+        "total_files": len(results["imported"]) + len(results["skipped"]) + len(results["errors"]),
+        "imported_count": len(results["imported"]),
+        "skipped_count": len(results["skipped"]),
+        "error_count": len(results["errors"]),
+        "results": results,
+    }
+
 # --- Whisper Speech-to-Text ---
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
