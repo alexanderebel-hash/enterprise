@@ -326,6 +326,142 @@ class LCARSAPITester:
         )
         return success
 
+    def test_get_locations(self):
+        """Test getting Enterprise locations"""
+        success, response = self.run_test(
+            "Get Enterprise Locations",
+            "GET",
+            "api/locations", 
+            200
+        )
+        if success:
+            print(f"   Locations found: {len(response)}")
+            if response:
+                self.test_location_id = response[0].get('location_id')
+                print(f"   Sample location: {response[0].get('name', 'Unknown')} - {response[0].get('ship_section', 'Unknown')}")
+                print(f"   Open tickets: {response[0].get('open_tickets', 0)}")
+                print(f"   Using location ID for tests: {self.test_location_id}")
+        return success
+
+    def test_get_single_location(self):
+        """Test getting a single location with tickets"""
+        if not hasattr(self, 'test_location_id') or not self.test_location_id:
+            print("❌ No location ID available for single location test")
+            return False
+            
+        success, response = self.run_test(
+            "Get Single Location",
+            "GET",
+            f"api/locations/{self.test_location_id}",
+            200
+        )
+        if success:
+            print(f"   Location: {response.get('name', 'Unknown')} - {response.get('ship_section', 'Unknown')}")
+            print(f"   Tickets: {len(response.get('tickets', []))}")
+        return success
+
+    def test_get_tickets(self):
+        """Test getting all tickets"""
+        success, response = self.run_test(
+            "Get All Tickets",
+            "GET",
+            "api/tickets",
+            200
+        )
+        if success:
+            print(f"   Total tickets found: {len(response)}")
+            if response:
+                self.test_ticket_id = response[0].get('ticket_id')
+                print(f"   Sample ticket: {response[0].get('title', 'Unknown')}")
+                print(f"   Status: {response[0].get('status', 'Unknown')}")
+                print(f"   Using ticket ID for tests: {self.test_ticket_id}")
+        return success
+
+    def test_create_ticket(self):
+        """Test creating a new ticket"""
+        if not hasattr(self, 'test_location_id') or not self.test_location_id:
+            print("❌ No location ID available for ticket creation")
+            return False
+            
+        test_data = {
+            "title": "Test API Ticket - Iteration 5",
+            "description": "Test ticket created during API testing for Enterprise Map integration",
+            "location_id": self.test_location_id,
+            "priority": "high",
+            "status": "offen"
+        }
+        
+        success, response = self.run_test(
+            "Create Ticket",
+            "POST",
+            "api/tickets",
+            200,  # Backend returns 200 instead of 201
+            data=test_data,
+            token=self.captain_token
+        )
+        if success:
+            self.created_ticket_id = response.get('ticket_id')
+            print(f"   Created ticket ID: {self.created_ticket_id}")
+        return success
+
+    def test_update_ticket_status(self):
+        """Test updating ticket status"""
+        ticket_id = getattr(self, 'created_ticket_id', None) or getattr(self, 'test_ticket_id', None)
+        if not ticket_id:
+            print("❌ No ticket ID available for status update test")
+            return False
+            
+        update_data = {"status": "in_bearbeitung"}
+        
+        success, response = self.run_test(
+            "Update Ticket Status",
+            "PUT",
+            f"api/tickets/{ticket_id}",
+            200,
+            data=update_data,
+            token=self.captain_token
+        )
+        if success:
+            print(f"   Updated status: {response.get('status', 'Unknown')}")
+        return success
+
+    def test_complete_ticket(self):
+        """Test completing a ticket"""
+        ticket_id = getattr(self, 'created_ticket_id', None) or getattr(self, 'test_ticket_id', None)
+        if not ticket_id:
+            print("❌ No ticket ID available for completion test")
+            return False
+            
+        update_data = {"status": "erledigt"}
+        
+        success, response = self.run_test(
+            "Complete Ticket",
+            "PUT",
+            f"api/tickets/{ticket_id}",
+            200,
+            data=update_data,
+            token=self.captain_token
+        )
+        if success:
+            print(f"   Ticket completed: {response.get('status', 'Unknown')}")
+        return success
+
+    def test_delete_ticket_as_captain(self):
+        """Test deleting ticket as Captain (cleanup)"""
+        ticket_id = getattr(self, 'created_ticket_id', None)
+        if not ticket_id:
+            print("❌ No created ticket ID available for delete test")
+            return False
+            
+        success, response = self.run_test(
+            "Delete Ticket (Captain)",
+            "DELETE",
+            f"api/tickets/{ticket_id}",
+            200,
+            token=self.captain_token
+        )
+        return success
+
     def run_all_tests(self):
         """Run all backend tests in sequence"""
         print("=" * 80)
