@@ -1,4 +1,4 @@
-const API = process.env.REACT_APP_BACKEND_URL;
+const API = import.meta.env.VITE_BACKEND_URL;
 
 function getHeaders(token) {
   const h = { 'Content-Type': 'application/json' };
