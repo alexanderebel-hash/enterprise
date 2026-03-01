@@ -30,18 +30,43 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
   // File import state
   const [isImporting, setIsImporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [batchResult, setBatchResult] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileDrop = useCallback(async (file) => {
     if (!file) return;
-    const allowed = ['.md', '.txt', '.markdown', '.html', '.htm', '.pdf'];
     const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    // ZIP batch import
+    if (ext === '.zip') {
+      setIsImporting(true);
+      setBatchResult(null);
+      setError('');
+      play('dataTransmit');
+      try {
+        const result = await api.importBatch(token, file);
+        setBatchResult(result);
+        play('computerAck');
+        setSuccess(`ZIP-Import abgeschlossen: ${result.imported_count} Dateien importiert!`);
+        setTimeout(() => setSuccess(''), 5000);
+      } catch (e) {
+        setError(`Batch-Importfehler: ${e.message}`);
+        play('alert');
+      } finally {
+        setIsImporting(false);
+      }
+      return;
+    }
+
+    // Single file import
+    const allowed = ['.md', '.txt', '.markdown', '.html', '.htm', '.pdf'];
     if (!allowed.includes(ext)) {
-      setError(`Format nicht unterstuetzt: ${ext}. Erlaubt: ${allowed.join(', ')}`);
+      setError(`Format nicht unterstuetzt: ${ext}. Erlaubt: ${allowed.join(', ')}, .zip`);
       play('alert');
       return;
     }
     setIsImporting(true);
+    setBatchResult(null);
     setError('');
     play('dataTransmit');
     try {
