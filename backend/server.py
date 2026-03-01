@@ -550,6 +550,74 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
 async def health():
     return {"status": "online", "stardate": datetime.now(timezone.utc).isoformat(), "ship": "USS Enterprise NCC-1701-D"}
 
+# --- Locations & Tickets (Enterprise Map) ---
+@app.get("/api/locations")
+async def get_locations():
+    locations = await db.locations.find({}, {"_id": 0}).to_list(50)
+    # Attach ticket counts per location
+    for loc in locations:
+        open_count = await db.tickets.count_documents({"location_id": loc["location_id"], "status": {"$in": ["offen", "in_bearbeitung"]}})
+        critical_count = await db.tickets.count_documents({"location_id": loc["location_id"], "status": "offen", "priority": {"$in": ["high", "critical"]}})
+        loc["open_tickets"] = open_count
+        loc["critical_tickets"] = critical_count
+    return locations
+
+@app.get("/api/locations/{location_id}")
+async def get_location(location_id: str):
+    loc = await db.locations.find_one({"location_id": location_id}, {"_id": 0})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Standort nicht gefunden")
+    tickets = await db.tickets.find({"location_id": location_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    loc["tickets"] = tickets
+    return loc
+
+@app.get("/api/tickets")
+async def get_tickets(location_id: Optional[str] = None, status: Optional[str] = None):
+    query = {}
+    if location_id:
+        query["location_id"] = location_id
+    if status:
+        query["status"] = status
+    tickets = await db.tickets.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return tickets
+
+@app.post("/api/tickets")
+async def create_ticket(ticket: TicketCreate, user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "ticket_id": str(uuid.uuid4()),
+        "title": ticket.title,
+        "description": ticket.description,
+        "location_id": ticket.location_id,
+        "priority": ticket.priority,
+        "status": ticket.status,
+        "created_by": user["user_id"],
+        "created_at": now,
+    }
+    await db.tickets.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@app.put("/api/tickets/{ticket_id}")
+async def update_ticket(ticket_id: str, ticket: TicketUpdate, user: dict = Depends(get_current_user)):
+    updates = {k: v for k, v in ticket.dict().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Keine Aenderungen")
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.tickets.update_one({"ticket_id": ticket_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    updated = await db.tickets.find_one({"ticket_id": ticket_id}, {"_id": 0})
+    return updated
+
+@app.delete("/api/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: str, user: dict = Depends(get_current_user)):
+    require_captain(user)
+    result = await db.tickets.delete_one({"ticket_id": ticket_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    return {"message": "Ticket geloescht"}
+
 # --- Whisper Speech-to-Text ---
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
