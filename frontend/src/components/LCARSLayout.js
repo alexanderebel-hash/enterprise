@@ -15,12 +15,14 @@ const NAV_ITEMS = [
 
 export default function LCARSLayout({ children, activePage, onNavigate }) {
   const { user, logout } = useAuth();
+  const { play } = useLCARSSound();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isCaptain = user?.role === 'captain';
 
   const filteredNav = NAV_ITEMS.filter(n => !n.captainOnly || isCaptain);
 
   const handleNav = (id) => {
+    play('navigate');
     onNavigate(id);
     setMobileOpen(false);
   };
