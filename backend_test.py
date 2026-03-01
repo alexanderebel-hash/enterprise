@@ -465,7 +465,7 @@ class LCARSAPITester:
     def run_all_tests(self):
         """Run all backend tests in sequence"""
         print("=" * 80)
-        print("🖥️  LCARS BACKEND API TEST SUITE - ITERATION 4")
+        print("🖥️  LCARS BACKEND API TEST SUITE - ITERATION 5")
         print("=" * 80)
         
         # Core system tests
@@ -484,6 +484,15 @@ class LCARSAPITester:
         self.test_get_articles()
         self.test_get_single_article()
         self.test_dashboard_stats()
+        
+        # Enterprise Map & Ticket System tests
+        print("\n🚀 ENTERPRISE MAP & TICKET SYSTEM TESTS")
+        self.test_get_locations()
+        self.test_get_single_location()
+        self.test_get_tickets()
+        self.test_create_ticket()
+        self.test_update_ticket_status()
+        self.test_complete_ticket()
         
         # Captain permission tests
         print("\n👨‍✈️ CAPTAIN PERMISSION TESTS")
@@ -507,6 +516,7 @@ class LCARSAPITester:
         # Cleanup
         print("\n🧹 CLEANUP")
         self.test_delete_article_as_captain()
+        self.test_delete_ticket_as_captain()
         
         # Print results
         print("\n" + "=" * 80)
