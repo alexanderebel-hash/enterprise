@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLCARSSound } from '../hooks/useLCARSSound';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Plus, X, ChevronRight } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Plus, X, Shield, Monitor, Navigation, Settings, Cpu, Compass, Star } from 'lucide-react';
 
 const PRIORITY_COLORS = {
   critical: '#FF3333', high: '#CC6666', normal: '#FF9900', low: '#9999FF',
