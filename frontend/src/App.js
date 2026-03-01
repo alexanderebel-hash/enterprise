@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
+import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import LCARSLayout from './components/LCARSLayout';
 import Dashboard from './components/Dashboard';
@@ -12,6 +13,7 @@ function AppContent() {
   const [page, setPage] = useState('dashboard');
   const [pageParams, setPageParams] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('lcars_splash_shown'));
 
   useEffect(() => {
     if (token && !user) {
@@ -25,6 +27,15 @@ function AppContent() {
     setPage(p);
     setPageParams(params);
   };
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+    sessionStorage.setItem('lcars_splash_shown', 'true');
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   if (!authChecked) {
     return (
