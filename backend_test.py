@@ -377,6 +377,31 @@ class LCARSAPITester:
                 print(f"   Using ticket ID for tests: {self.test_ticket_id}")
         return success
 
+    def test_get_open_tickets(self):
+        """Test getting only open tickets (for Red Alert system)"""
+        success, response = self.run_test(
+            "Get Open Tickets",
+            "GET",
+            "api/tickets?status=offen",
+            200
+        )
+        if success:
+            critical_tickets = [t for t in response if t.get('priority') == 'critical']
+            high_tickets = [t for t in response if t.get('priority') == 'high'] 
+            print(f"   Open tickets found: {len(response)}")
+            print(f"   Critical tickets: {len(critical_tickets)} (triggers Red Alert)")
+            print(f"   High priority tickets: {len(high_tickets)}")
+            
+            # Check for the seeded critical ticket (WG Sterndamm WLAN)
+            wlan_ticket = next((t for t in critical_tickets if 'WLAN' in t.get('title', '') and 'sterndamm' in t.get('location_id', '')), None)
+            if wlan_ticket:
+                print(f"   ✓ Critical WLAN ticket found: {wlan_ticket['title']}")
+                self.critical_ticket_id = wlan_ticket.get('ticket_id')
+            else:
+                print(f"   ⚠ Critical WLAN ticket not found in open tickets")
+                
+        return success
+
     def test_create_ticket(self):
         """Test creating a new ticket"""
         if not hasattr(self, 'test_location_id') or not self.test_location_id:
