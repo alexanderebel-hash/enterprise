@@ -57,6 +57,19 @@ class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
 
+class TicketCreate(BaseModel):
+    title: str
+    description: str = ""
+    location_id: str
+    priority: str = "normal"  # low, normal, high, critical
+    status: str = "offen"  # offen, in_bearbeitung, erledigt
+
+class TicketUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+
 # --- DB ---
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
