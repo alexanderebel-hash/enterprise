@@ -4,9 +4,9 @@
 Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge capture. Captain P (senior IT admin) creates IT process documentation, Nummer Eins/Ralf (junior IT assistant) consumes it. AI-powered "Computer" chat answers questions from the knowledge base. German language interface.
 
 ## Architecture
-- **Frontend:** React + Tailwind CSS (LCARS Star Trek TNG theme)
+- **Frontend:** React + Tailwind CSS + Vite 6 (LCARS Star Trek TNG theme)
 - **Backend:** FastAPI (Python)
-- **Database:** MongoDB (collections: users, articles, categories, chat_history)
+- **Database:** MongoDB (collections: users, articles, categories, chat_history, locations, tickets)
 - **AI:** Claude Sonnet 4.5 via Emergent LLM Key (emergentintegrations library)
 
 ## User Personas
