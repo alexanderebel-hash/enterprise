@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import {
   LayoutDashboard, Database, MessageSquare, PlusCircle,
-  LogOut, Menu, X, ChevronRight
+  LogOut, Menu, X, ChevronRight, Rocket
 } from 'lucide-react';
 import { useLCARSSound } from '../hooks/useLCARSSound';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'BRUECKE', icon: LayoutDashboard, color: 'bg-lcars-orange' },
-  { id: 'enterprise', label: 'ENTERPRISE', icon: Database, color: 'bg-lcars-tan' },
+  { id: 'enterprise', label: 'ENTERPRISE', icon: Rocket, color: 'bg-lcars-tan' },
   { id: 'knowledge', label: 'DATENBANK', icon: Database, color: 'bg-lcars-blue' },
   { id: 'chat', label: 'COMPUTER', icon: MessageSquare, color: 'bg-lcars-pink' },
   { id: 'create', label: 'LOGBUCH', icon: PlusCircle, color: 'bg-lcars-tan', captainOnly: true },
