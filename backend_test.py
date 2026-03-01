@@ -515,6 +515,7 @@ class LCARSAPITester:
         self.test_get_locations()
         self.test_get_single_location()
         self.test_get_tickets()
+        self.test_get_open_tickets()
         self.test_create_ticket()
         self.test_update_ticket_status()
         self.test_complete_ticket()
