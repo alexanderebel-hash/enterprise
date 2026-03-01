@@ -2,12 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLCARSSound } from '../hooks/useLCARSSound';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Plus, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Plus, X, ChevronRight } from 'lucide-react';
 
 const PRIORITY_COLORS = {
   critical: '#FF3333', high: '#CC6666', normal: '#FF9900', low: '#9999FF',
 };
 const STATUS_LABELS = { offen: 'OFFEN', in_bearbeitung: 'IN BEARBEITUNG', erledigt: 'ERLEDIGT' };
+
+// Hotspot positions on the cross-section image (% from top-left)
+const HOTSPOT_POSITIONS = {
+  bruecke:       { x: 66, y: 10, label: 'HAUPTBRUECKE' },
+  sterndamm:     { x: 58, y: 28, label: 'QUARTIERE' },
+  kupfer_gross:  { x: 34, y: 48, label: 'MASCHINENRAUM' },
+  kupfer_klein:  { x: 18, y: 38, label: 'SHUTTLEHANGAR' },
+  drachenwiese:  { x: 62, y: 36, label: 'KRANKENSTATION' },
+  drachenblick:  { x: 80, y: 28, label: 'ZEHN VORNE' },
+  hebron:        { x: 28, y: 62, label: 'FRACHTRAUM' },
+  aussentour:    { x: 8, y: 72, label: 'AUSSENMISSION' },
+};
 
 export default function EnterpriseMap({ onNavigate }) {
   const { token, user } = useAuth();
@@ -16,33 +28,27 @@ export default function EnterpriseMap({ onNavigate }) {
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [locationDetail, setLocationDetail] = useState(null);
-  const [viewMode, setViewMode] = useState('exterior'); // exterior, crosssection
+  const [viewMode, setViewMode] = useState('exterior');
   const [loading, setLoading] = useState(true);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'normal' });
-  const canvasRef = useRef(null);
-  const animRef = useRef(null);
   const [hoverLocation, setHoverLocation] = useState(null);
+  const [warpPhase, setWarpPhase] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
 
-  useEffect(() => {
-    loadLocations();
-  }, []);
+  useEffect(() => { loadLocations(); }, []);
 
   const loadLocations = async () => {
-    try {
-      const locs = await api.getLocations();
-      setLocations(locs);
-    } catch (e) { console.error(e); }
+    try { const locs = await api.getLocations(); setLocations(locs); }
+    catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const selectLocation = async (loc) => {
     play('panelOpen');
     setSelectedLocation(loc);
-    try {
-      const detail = await api.getLocation(loc.location_id);
-      setLocationDetail(detail);
-    } catch (e) { console.error(e); }
+    try { const detail = await api.getLocation(loc.location_id); setLocationDetail(detail); }
+    catch (e) { console.error(e); }
   };
 
   const createTicket = async () => {
@@ -69,33 +75,17 @@ export default function EnterpriseMap({ onNavigate }) {
     } catch (e) { play('alert'); }
   };
 
-  // Animated starfield canvas
-  useEffect(() => {
-    if (viewMode !== 'exterior') return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let stars = [];
-    const resize = () => { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; };
-    resize();
-    for (let i = 0; i < 120; i++) {
-      stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, s: Math.random() * 1.5 + 0.3, a: Math.random() });
-    }
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      stars.forEach(st => {
-        st.a += 0.005 + Math.random() * 0.005;
-        const alpha = 0.3 + Math.sin(st.a) * 0.4;
-        ctx.beginPath();
-        ctx.arc(st.x, st.y, st.s, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200,200,255,${Math.max(0.1, alpha)})`;
-        ctx.fill();
-      });
-      animRef.current = requestAnimationFrame(draw);
-    }
-    draw();
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-  }, [viewMode]);
+  // Warp transition animation
+  const doWarpTransition = (targetMode) => {
+    if (transitioning) return;
+    play('scan');
+    setTransitioning(true);
+    setWarpPhase(1);
+    setTimeout(() => setWarpPhase(2), 400);
+    setTimeout(() => { setWarpPhase(3); setViewMode(targetMode); }, 800);
+    setTimeout(() => setWarpPhase(4), 1200);
+    setTimeout(() => { setWarpPhase(0); setTransitioning(false); }, 1600);
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><div className="text-lcars-orange font-lcars tracking-[0.3em] text-2xl animate-pulse">SCHIFFSSYSTEME LADEN...</div></div>;
@@ -111,7 +101,6 @@ export default function EnterpriseMap({ onNavigate }) {
           className="flex items-center gap-2 text-lcars-blue font-lcars text-sm tracking-wider mb-4 hover:text-lcars-orange transition-colors">
           <ArrowLeft size={16} /> ZURUECK ZUR ENTERPRISE
         </button>
-
         <div className="flex items-center gap-4 mb-6">
           <div className="w-4 h-16 rounded-full" style={{ background: selectedLocation.color }} />
           <div>
@@ -121,8 +110,6 @@ export default function EnterpriseMap({ onNavigate }) {
             <p className="text-lcars-gray font-lcars text-xs tracking-[0.2em]">{selectedLocation.ship_section} - {selectedLocation.deck}</p>
           </div>
         </div>
-
-        {/* Create ticket */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lcars-orange font-lcars text-lg tracking-[0.2em]">OFFENE ANLIEGEN ({openTickets.length})</h2>
           <button data-testid="create-ticket-btn" onClick={() => { play('buttonPress'); setShowCreateTicket(!showCreateTicket); }}
@@ -130,10 +117,9 @@ export default function EnterpriseMap({ onNavigate }) {
             {showCreateTicket ? <X size={14} /> : <Plus size={14} />} {showCreateTicket ? 'ABBRECHEN' : 'NEUES ANLIEGEN'}
           </button>
         </div>
-
         {showCreateTicket && (
           <div className="border-2 border-lcars-orange/40 rounded-2xl p-4 mb-4 space-y-3 animate-fade-in" data-testid="create-ticket-form">
-            <input data-testid="ticket-title-input" type="text" placeholder="Titel des Anliegens..." value={newTicket.title}
+            <input data-testid="ticket-title-input" type="text" placeholder="Titel..." value={newTicket.title}
               onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
               className="w-full bg-black border border-lcars-orange/30 rounded-lg px-4 py-2 text-white font-lcars text-sm tracking-wider focus:border-lcars-orange focus:outline-none" />
             <textarea data-testid="ticket-desc-input" placeholder="Beschreibung..." value={newTicket.description}
@@ -154,8 +140,6 @@ export default function EnterpriseMap({ onNavigate }) {
             </button>
           </div>
         )}
-
-        {/* Open tickets */}
         <div className="space-y-2 mb-6">
           {openTickets.length === 0 ? (
             <div className="text-center py-8 border border-lcars-gray/20 rounded-xl">
@@ -190,7 +174,6 @@ export default function EnterpriseMap({ onNavigate }) {
             </div>
           ))}
         </div>
-
         {doneTickets.length > 0 && (
           <>
             <h2 className="text-lcars-gray font-lcars text-sm tracking-[0.2em] mb-2">ERLEDIGT ({doneTickets.length})</h2>
@@ -210,211 +193,204 @@ export default function EnterpriseMap({ onNavigate }) {
 
   return (
     <div className="h-full flex flex-col animate-fade-in" data-testid="enterprise-map-page">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h1 className="text-3xl md:text-4xl font-bold tracking-[0.3em] text-lcars-orange uppercase font-lcars" data-testid="map-title">
           ENTERPRISE
         </h1>
         <div className="flex gap-2">
-          <button data-testid="view-exterior" onClick={() => { play('buttonPress'); setViewMode('exterior'); }}
-            className={`rounded-full px-5 py-1.5 font-lcars text-xs tracking-[0.2em] transition-all ${viewMode === 'exterior' ? 'bg-lcars-orange text-black' : 'bg-lcars-orange/10 text-lcars-orange'}`}>
-            AUSSENANSICHT
-          </button>
-          <button data-testid="view-crosssection" onClick={() => { play('buttonPress'); setViewMode('crosssection'); }}
-            className={`rounded-full px-5 py-1.5 font-lcars text-xs tracking-[0.2em] transition-all ${viewMode === 'crosssection' ? 'bg-lcars-orange text-black' : 'bg-lcars-orange/10 text-lcars-orange'}`}>
-            QUERSCHNITT
-          </button>
+          {['exterior', 'crosssection', 'bridge'].map((mode) => {
+            const labels = { exterior: 'AUSSENANSICHT', crosssection: 'QUERSCHNITT', bridge: 'BRUECKENANSICHT' };
+            return (
+              <button key={mode} data-testid={`view-${mode}`}
+                onClick={() => doWarpTransition(mode)}
+                className={`rounded-full px-4 py-1.5 font-lcars text-[10px] tracking-[0.15em] transition-all ${viewMode === mode ? 'bg-lcars-orange text-black' : 'bg-lcars-orange/10 text-lcars-orange hover:bg-lcars-orange/20'}`}>
+                {labels[mode]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden rounded-2xl border-2 border-lcars-orange/30 bg-black" data-testid="ship-viewport">
-        {viewMode === 'exterior' && <canvas ref={canvasRef} className="absolute inset-0" />}
+      {/* Ship viewport */}
+      <div className="flex-1 relative overflow-hidden rounded-2xl border-2 border-lcars-orange/30" data-testid="ship-viewport"
+        style={{ minHeight: '400px' }}>
 
-        {/* Enterprise SVG Ship */}
-        <svg viewBox="0 0 960 480" className="w-full h-full relative z-10" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-          <defs>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="strongGlow">
-              <feGaussianBlur stdDeviation="8" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <linearGradient id="hullGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#334" />
-              <stop offset="100%" stopColor="#112" />
-            </linearGradient>
-            <linearGradient id="nacGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#226" />
-              <stop offset="50%" stopColor="#33a" />
-              <stop offset="100%" stopColor="#226" />
-            </linearGradient>
-          </defs>
-
-          {viewMode === 'crosssection' && (
-            <>
-              {/* Grid lines for cross-section */}
-              {Array.from({ length: 48 }, (_, i) => (
-                <line key={`gx${i}`} x1={i * 20} y1="0" x2={i * 20} y2="480" stroke="#FF990008" strokeWidth="0.5" />
-              ))}
-              {Array.from({ length: 24 }, (_, i) => (
-                <line key={`gy${i}`} x1="0" y1={i * 20} x2="960" y2={i * 20} stroke="#FF990008" strokeWidth="0.5" />
-              ))}
-            </>
-          )}
-
-          {/* === SAUCER SECTION === */}
-          <ellipse cx="680" cy="140" rx="220" ry="70" fill="url(#hullGrad)" stroke="#FF990040" strokeWidth="1.5" />
-          {viewMode === 'crosssection' && (
-            <>
-              {/* Inner deck lines */}
-              {[100, 120, 140, 160, 180].map((y, i) => (
-                <ellipse key={`deck${i}`} cx="680" cy="140" rx={200 - i * 15} ry={Math.max(10, 60 - i * 12)} fill="none" stroke="#FF990015" strokeWidth="0.5" style={{ transform: `translateY(${(y - 140) * 0.3}px)` }} />
-              ))}
-            </>
-          )}
-          {/* Bridge dome */}
-          <ellipse cx="680" cy="78" rx="30" ry="10" fill="#223" stroke="#FF990050" strokeWidth="1" />
-          <ellipse cx="680" cy="75" rx="12" ry="4" fill="#FF990030" stroke="#FF9900" strokeWidth="0.5" />
-
-          {/* === NECK/DORSAL === */}
-          <path d="M640,200 L640,260 Q640,280 620,290 L500,290 L500,260 L620,260 Q630,260 630,250 L630,200 Z"
-            fill="url(#hullGrad)" stroke="#FF990030" strokeWidth="1" />
-
-          {/* === ENGINEERING HULL === */}
-          <path d="M180,240 Q180,200 280,200 L500,200 L500,380 L280,380 Q180,380 180,340 Z"
-            fill="url(#hullGrad)" stroke="#FF990030" strokeWidth="1" />
-          {viewMode === 'crosssection' && (
-            <>
-              {/* Internal engineering lines */}
-              <line x1="280" y1="220" x2="480" y2="220" stroke="#FF990010" strokeWidth="0.5" />
-              <line x1="280" y1="260" x2="480" y2="260" stroke="#FF990010" strokeWidth="0.5" />
-              <line x1="280" y1="300" x2="480" y2="300" stroke="#FF990010" strokeWidth="0.5" />
-              <line x1="280" y1="340" x2="480" y2="340" stroke="#FF990010" strokeWidth="0.5" />
-              <line x1="350" y1="210" x2="350" y2="370" stroke="#FF990010" strokeWidth="0.5" />
-              <line x1="420" y1="210" x2="420" y2="370" stroke="#FF990010" strokeWidth="0.5" />
-              {/* Warp core */}
-              <rect x="385" y="230" width="10" height="120" rx="5" fill="#CC666630" stroke="#CC6666" strokeWidth="0.5" />
-              <circle cx="390" cy="290" r="6" fill="#CC666660" stroke="#CC6666" strokeWidth="1">
-                <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
-              </circle>
-            </>
-          )}
-
-          {/* === DEFLECTOR DISH === */}
-          <ellipse cx="180" cy="290" rx="12" ry="35" fill="#4455FF20" stroke="#4455FF" strokeWidth="1.5">
-            <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" />
-          </ellipse>
-
-          {/* === NACELLE PYLONS === */}
-          <path d="M360,210 L300,60 L310,60 L380,210" fill="url(#hullGrad)" stroke="#FF990020" strokeWidth="0.5" />
-          <path d="M360,370 L300,430 L310,430 L380,370" fill="url(#hullGrad)" stroke="#FF990020" strokeWidth="0.5" />
-
-          {/* === UPPER NACELLE === */}
-          <rect x="80" y="35" width="280" height="35" rx="17" fill="url(#nacGrad)" stroke="#9999FF40" strokeWidth="1" />
-          <rect x="90" y="42" width="260" height="20" rx="10" fill="#9999FF15" />
-          {/* Bussard collector */}
-          <circle cx="370" cy="52" r="14" fill="#CC666640" stroke="#CC6666" strokeWidth="1">
-            <animate attributeName="fill" values="#CC666620;#CC666660;#CC666620" dur="2s" repeatCount="indefinite" />
-          </circle>
-
-          {/* === LOWER NACELLE === */}
-          <rect x="80" y="415" width="280" height="35" rx="17" fill="url(#nacGrad)" stroke="#9999FF40" strokeWidth="1" />
-          <rect x="90" y="422" width="260" height="20" rx="10" fill="#9999FF15" />
-          <circle cx="370" cy="432" r="14" fill="#CC666640" stroke="#CC6666" strokeWidth="1">
-            <animate attributeName="fill" values="#CC666620;#CC666660;#CC666620" dur="2s" repeatCount="indefinite" />
-          </circle>
-
-          {/* === SHUTTLE BAY (rear of saucer) === */}
-          {viewMode === 'crosssection' && (
-            <rect x="460" y="130" width="8" height="20" fill="#FF990030" stroke="#FF9900" strokeWidth="0.5" />
-          )}
-
-          {/* === LOCATION HOTSPOTS === */}
-          {locations.map((loc) => {
-            const hasIssues = loc.open_tickets > 0;
-            const isCritical = loc.critical_tickets > 0;
-            const isHovered = hoverLocation === loc.location_id;
-            const pulseColor = isCritical ? '#FF3333' : hasIssues ? '#FF9900' : loc.color;
-
-            return (
-              <g key={loc.location_id} className="cursor-pointer" data-testid={`location-hotspot-${loc.location_id}`}
-                onClick={() => selectLocation(loc)}
-                onMouseEnter={() => setHoverLocation(loc.location_id)}
-                onMouseLeave={() => setHoverLocation(null)}>
-
-                {/* Glow behind for active locations */}
-                {hasIssues && (
-                  <circle cx={loc.x} cy={loc.y} r={isHovered ? 28 : 22} fill={`${pulseColor}15`} filter="url(#strongGlow)">
-                    <animate attributeName="r" values={isHovered ? "26;30;26" : "18;24;18"} dur="1.5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite" />
-                  </circle>
-                )}
-
-                {/* Main circle */}
-                <circle cx={loc.x} cy={loc.y} r={isHovered ? 16 : 12} fill={`${loc.color}40`}
-                  stroke={isHovered ? '#fff' : loc.color} strokeWidth={isHovered ? 2 : 1.5}
-                  style={{ transition: 'all 0.2s ease' }} />
-
-                {/* Inner dot */}
-                <circle cx={loc.x} cy={loc.y} r={4} fill={loc.color}>
-                  {hasIssues && <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />}
-                </circle>
-
-                {/* Ticket count badge */}
-                {hasIssues && (
-                  <>
-                    <circle cx={loc.x + 14} cy={loc.y - 14} r={8} fill={isCritical ? '#FF3333' : '#FF9900'} />
-                    <text x={loc.x + 14} y={loc.y - 10} textAnchor="middle" fill="#000" fontSize="9" fontWeight="bold" fontFamily="Antonio">
-                      {loc.open_tickets}
-                    </text>
-                  </>
-                )}
-
-                {/* Label */}
-                <text x={loc.x} y={loc.y + (loc.y < 200 ? -22 : 28)} textAnchor="middle" fill={isHovered ? '#fff' : loc.color}
-                  fontSize="9" fontFamily="Antonio" letterSpacing="2" style={{ transition: 'fill 0.2s', textTransform: 'uppercase' }}>
-                  {loc.ship_section}
-                </text>
-                <text x={loc.x} y={loc.y + (loc.y < 200 ? -12 : 38)} textAnchor="middle" fill={isHovered ? loc.color : '#666'}
-                  fontSize="7" fontFamily="Roboto Condensed" letterSpacing="1">
-                  {loc.name}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Ship label */}
-          <text x="680" y="240" textAnchor="middle" fill="#FF990040" fontSize="10" fontFamily="Antonio" letterSpacing="4">
-            USS ENTERPRISE NCC-1701-D
-          </text>
-        </svg>
-
-        {/* Legend */}
-        <div className="absolute bottom-3 left-3 flex gap-3 bg-black/80 rounded-full px-4 py-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-lcars-red animate-pulse" />
-            <span className="font-lcars text-[8px] text-lcars-red tracking-wider">KRITISCH</span>
+        {/* Warp transition overlay */}
+        {warpPhase > 0 && (
+          <div className="absolute inset-0 z-30 pointer-events-none" style={{
+            background: warpPhase === 2 ? 'radial-gradient(ellipse at center, rgba(153,153,255,0.4) 0%, rgba(0,0,0,0.9) 70%)' :
+                         warpPhase === 3 ? 'radial-gradient(ellipse at center, rgba(255,255,255,0.6) 0%, rgba(0,0,0,0.8) 60%)' :
+                         'rgba(0,0,0,0)',
+            transition: 'all 0.4s ease',
+          }}>
+            {/* Warp streaks */}
+            {warpPhase >= 2 && warpPhase <= 3 && (
+              <div className="absolute inset-0 overflow-hidden">
+                {Array.from({ length: 30 }, (_, i) => (
+                  <div key={i} className="absolute h-[1px] bg-gradient-to-r from-transparent via-blue-300/60 to-transparent"
+                    style={{
+                      top: `${Math.random() * 100}%`,
+                      left: '-10%',
+                      width: `${40 + Math.random() * 60}%`,
+                      transform: `translateX(${warpPhase === 3 ? '120%' : '0'})`,
+                      transition: `transform ${0.3 + Math.random() * 0.2}s ease-in`,
+                      transitionDelay: `${Math.random() * 0.1}s`,
+                    }} />
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-lcars-orange animate-pulse" />
-            <span className="font-lcars text-[8px] text-lcars-orange tracking-wider">OFFEN</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-lcars-tan" />
-            <span className="font-lcars text-[8px] text-lcars-tan tracking-wider">OK</span>
-          </div>
-        </div>
+        )}
 
-        {/* Hover tooltip */}
-        {hoverLocation && (() => {
+        {/* === EXTERIOR VIEW === */}
+        {viewMode === 'exterior' && (
+          <div className="absolute inset-0">
+            <img src="/assets/enterprise/seitenansicht.jpg" alt="USS Enterprise NCC-1701-D"
+              className="w-full h-full object-contain" style={{ background: '#000' }} />
+            {/* Scan overlay */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-lcars-orange/[0.02] to-transparent"
+                style={{ animation: 'scan 4s linear infinite' }} />
+            </div>
+            {/* Ship info overlay */}
+            <div className="absolute bottom-4 left-4 bg-black/70 border border-lcars-orange/30 rounded-xl px-4 py-3">
+              <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">USS ENTERPRISE NCC-1701-D</p>
+              <p className="font-lcars text-lcars-gray text-[9px] tracking-[0.15em]">GALAXY-KLASSE - VEREINIGTE FOEDERATION DER PLANETEN</p>
+            </div>
+            <div className="absolute top-4 right-4 bg-black/70 border border-lcars-blue/30 rounded-xl px-4 py-2">
+              <p className="font-lcars text-lcars-blue text-[10px] tracking-[0.2em]">KLICKEN SIE QUERSCHNITT</p>
+              <p className="font-lcars text-lcars-blue text-[10px] tracking-[0.2em]">FUER STANDORT-DETAILS</p>
+            </div>
+          </div>
+        )}
+
+        {/* === CROSS-SECTION VIEW === */}
+        {viewMode === 'crosssection' && (
+          <div className="absolute inset-0">
+            <img src="/assets/enterprise/querschnitt.jpg" alt="Enterprise Querschnitt"
+              className="w-full h-full object-contain" style={{ background: '#000' }} />
+            {/* Hotspots overlay */}
+            <div className="absolute inset-0">
+              {locations.map((loc) => {
+                const pos = HOTSPOT_POSITIONS[loc.location_id];
+                if (!pos) return null;
+                const hasIssues = loc.open_tickets > 0;
+                const isCritical = loc.critical_tickets > 0;
+                const isHovered = hoverLocation === loc.location_id;
+
+                return (
+                  <div key={loc.location_id} className="absolute cursor-pointer group"
+                    data-testid={`location-hotspot-${loc.location_id}`}
+                    style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
+                    onClick={() => selectLocation(loc)}
+                    onMouseEnter={() => { setHoverLocation(loc.location_id); play('buttonPress'); }}
+                    onMouseLeave={() => setHoverLocation(null)}>
+
+                    {/* Pulse ring for active locations */}
+                    {hasIssues && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="absolute rounded-full animate-ping"
+                          style={{
+                            width: '48px', height: '48px',
+                            background: `${isCritical ? '#FF333330' : '#FF990020'}`,
+                            border: `1px solid ${isCritical ? '#FF333350' : '#FF990040'}`,
+                          }} />
+                      </div>
+                    )}
+
+                    {/* Main dot */}
+                    <div className={`relative z-10 rounded-full flex items-center justify-center transition-all duration-200 ${isHovered ? 'scale-150' : ''}`}
+                      style={{
+                        width: hasIssues ? '28px' : '20px',
+                        height: hasIssues ? '28px' : '20px',
+                        background: `${loc.color}40`,
+                        border: `2px solid ${isHovered ? '#fff' : loc.color}`,
+                        boxShadow: isHovered ? `0 0 20px ${loc.color}80, 0 0 40px ${loc.color}40` : hasIssues ? `0 0 12px ${loc.color}50` : 'none',
+                      }}>
+                      <div className="rounded-full" style={{
+                        width: '8px', height: '8px', background: loc.color,
+                        animation: hasIssues ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                      }} />
+                    </div>
+
+                    {/* Ticket badge */}
+                    {hasIssues && (
+                      <div className="absolute -top-1 -right-1 z-20 rounded-full w-5 h-5 flex items-center justify-center text-[9px] font-bold font-lcars"
+                        style={{ background: isCritical ? '#FF3333' : '#FF9900', color: '#000' }}>
+                        {loc.open_tickets}
+                      </div>
+                    )}
+
+                    {/* Label tooltip */}
+                    <div className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap transition-all duration-200 pointer-events-none z-20 ${isHovered ? 'opacity-100 scale-100' : 'opacity-70 scale-90'}`}
+                      style={{ top: '-32px' }}>
+                      <div className="bg-black/90 border rounded-lg px-3 py-1.5"
+                        style={{ borderColor: `${loc.color}60` }}>
+                        <p className="font-lcars text-[9px] tracking-[0.2em] text-center" style={{ color: loc.color }}>
+                          {pos.label}
+                        </p>
+                        <p className="font-lcars text-[8px] tracking-[0.1em] text-center text-white/80">
+                          {loc.name}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* === BRIDGE VIEW === */}
+        {viewMode === 'bridge' && (
+          <div className="absolute inset-0">
+            <img src="/assets/enterprise/bruecke_normal.jpg" alt="Enterprise Bruecke"
+              className="w-full h-full object-cover" style={{ background: '#000' }} />
+            {/* LCARS info overlay */}
+            <div className="absolute bottom-4 left-4 bg-black/70 border border-lcars-orange/30 rounded-xl px-4 py-3">
+              <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">HAUPTBRUECKE - DECK 1</p>
+              <p className="font-lcars text-lcars-gray text-[9px] tracking-[0.15em]">BAUMSCHULENSTRASSE 24 - ZENTRALE</p>
+            </div>
+            {/* Quick ticket summary */}
+            <div className="absolute top-4 right-4 bg-black/80 border border-lcars-orange/30 rounded-xl px-4 py-3 max-w-xs">
+              <p className="font-lcars text-lcars-orange text-[10px] tracking-[0.2em] mb-2">AKTUELLE ANLIEGEN</p>
+              {locations.filter(l => l.open_tickets > 0).slice(0, 4).map(loc => (
+                <button key={loc.location_id} onClick={() => selectLocation(loc)}
+                  data-testid={`bridge-loc-${loc.location_id}`}
+                  className="flex items-center gap-2 w-full text-left py-1 hover:bg-white/10 rounded px-2 transition-all">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: loc.critical_tickets > 0 ? '#FF3333' : loc.color }} />
+                  <span className="font-lcars text-[9px] tracking-wider text-white/80 flex-1">{loc.name}</span>
+                  <span className="font-lcars text-[9px]" style={{ color: loc.critical_tickets > 0 ? '#FF3333' : '#FF9900' }}>{loc.open_tickets}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Legend bar (cross-section only) */}
+        {viewMode === 'crosssection' && (
+          <div className="absolute bottom-3 left-3 flex gap-3 bg-black/80 rounded-full px-4 py-2 z-20">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="font-lcars text-[8px] text-red-400 tracking-wider">KRITISCH</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-lcars-orange animate-pulse" />
+              <span className="font-lcars text-[8px] text-lcars-orange tracking-wider">OFFEN</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-lcars-gray" />
+              <span className="font-lcars text-[8px] text-lcars-gray tracking-wider">OK</span>
+            </div>
+          </div>
+        )}
+
+        {/* Hover tooltip (cross-section) */}
+        {hoverLocation && viewMode === 'crosssection' && (() => {
           const loc = locations.find(l => l.location_id === hoverLocation);
           if (!loc) return null;
           return (
-            <div className="absolute top-3 right-3 bg-black/90 border border-lcars-orange/40 rounded-xl px-4 py-3 min-w-[200px]" data-testid="hover-tooltip">
+            <div className="absolute top-3 right-3 bg-black/90 border border-lcars-orange/40 rounded-xl px-4 py-3 min-w-[200px] z-20" data-testid="hover-tooltip">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-6 rounded-full" style={{ background: loc.color }} />
                 <span className="font-lcars text-sm tracking-wider" style={{ color: loc.color }}>{loc.name}</span>
