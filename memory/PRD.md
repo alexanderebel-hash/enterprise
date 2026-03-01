@@ -54,6 +54,7 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] **CRA → Vite 6 Migration** - react-scripts entfernt, Vite 6 + @vitejs/plugin-react, alle .js → .jsx, REACT_APP_* → VITE_*, ~10x schnellerer Dev-Server
 - [x] **Hardcoded Credentials → ENV** - SEED_CAPTAIN_PASSWORD und SEED_NUMMER_EINS_PASSWORD als Environment-Variablen
 - [x] **Scribe-Import Feature** - POST /api/articles/import: Akzeptiert Markdown/PDF/HTML, Auto-Kategorisierung aus Dateiname [KATEGORIE]-Titel.ext, Claude-Summary, Auto-Tags. Frontend: Drag-and-Drop Upload-Zone im LOGBUCH
+- [x] **ZIP Batch-Import** (2026-03-01) - POST /api/articles/import-batch: Akzeptiert ZIP-Dateien mit mehreren Dokumenten, importiert jede Datei einzeln mit Auto-Kategorie, Claude-Summary, Auto-Tags. Frontend zeigt Import-Bericht (IMPORTIERT/UEBERSPRUNGEN/FEHLER)
 
 ## Login Credentials
 - Captain P: username `captain`, password `engage`
