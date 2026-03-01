@@ -11,7 +11,7 @@ import io
 from datetime import datetime
 
 class LCARSAPITester:
-    def __init__(self, base_url="https://start-hub-5.preview.emergentagent.com"):
+    def __init__(self, base_url="https://star-trek-kb.preview.emergentagent.com"):
         self.base_url = base_url
         self.captain_token = None
         self.nummer_eins_token = None
