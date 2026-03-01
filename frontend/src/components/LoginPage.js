@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Shield, User } from 'lucide-react';
 import { getRandomQuote } from '../data/quotes';
+import { useLCARSSound } from '../hooks/useLCARSSound';
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
+  const { play } = useLCARSSound();
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [quote, setQuote] = useState(getRandomQuote());
