@@ -51,6 +51,9 @@ function AppContent() {
       case 'chat':
         return <ComputerChat />;
       case 'create':
+        if (user?.role !== 'captain') {
+          return <Dashboard onNavigate={navigate} />;
+        }
         return <ArticleEditor onNavigate={navigate} editArticleId={pageParams.editId} />;
       default:
         return <Dashboard onNavigate={navigate} />;
