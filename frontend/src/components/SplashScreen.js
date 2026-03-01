@@ -21,6 +21,13 @@ export default function SplashScreen({ onComplete }) {
   const [fadeOut, setFadeOut] = useState(false);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
+  const { play } = useLCARSSound();
+
+  // Play startup sound on mount
+  useEffect(() => {
+    const t = setTimeout(() => play('startup'), 300);
+    return () => clearTimeout(t);
+  }, [play]);
 
   // Tricorder scan canvas animation
   useEffect(() => {
