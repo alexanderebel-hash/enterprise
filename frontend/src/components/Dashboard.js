@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { FileText, FolderOpen, TrendingUp, Clock, Quote } from 'lucide-react';
 import { getRandomQuote } from '../data/quotes';
+import { useLCARSSound } from '../hooks/useLCARSSound';
 
 const COLOR_MAP = {
   'lcars-red': 'bg-lcars-red', 'lcars-orange': 'bg-lcars-orange', 'lcars-blue': 'bg-lcars-blue',
