@@ -138,6 +138,28 @@ export default function Dashboard({ onNavigate }) {
         </div>
       </div>
 
+      {/* Star Trek Quote */}
+      <div className="border-2 border-lcars-blue/30 rounded-2xl p-5 relative overflow-hidden" data-testid="quote-panel">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-lcars-blue/5 rounded-bl-full" />
+        <div className="flex items-start gap-4">
+          <Quote className="text-lcars-blue/40 flex-shrink-0 mt-1" size={28} />
+          <div className={`transition-all duration-500 ${quoteFade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+            <p className="font-lcars-body text-white/90 text-base md:text-lg leading-relaxed italic" data-testid="quote-text">
+              &laquo;{quote.text}&raquo;
+            </p>
+            <div className="flex items-center gap-3 mt-3">
+              <div className="h-[1px] w-8 bg-lcars-blue/30" />
+              <span className="font-lcars text-lcars-blue text-[10px] tracking-[0.25em]" data-testid="quote-author">
+                {quote.author.toUpperCase()}
+              </span>
+              <span className="font-lcars text-lcars-gray text-[9px] tracking-[0.15em]">
+                {quote.episode}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* System info bar */}
       <div className="flex flex-wrap gap-2 mt-4" data-testid="system-info">
         {['WARP-KERN: STABIL', 'SCHILDE: 100%', 'SENSOREN: AKTIV', 'COMPUTER-KERN: ONLINE'].map((s, i) => (
