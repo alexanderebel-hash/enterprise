@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { FileText, FolderOpen, TrendingUp, Clock } from 'lucide-react';
+import { FileText, FolderOpen, TrendingUp, Clock, Quote } from 'lucide-react';
+import { getRandomQuote } from '../data/quotes';
 
-const ICON_MAP = { wrench: '🔧', 'book-open': '📖', workflow: '⚙️', settings: '🔩', video: '📹' };
 const COLOR_MAP = {
   'lcars-red': 'bg-lcars-red', 'lcars-orange': 'bg-lcars-orange', 'lcars-blue': 'bg-lcars-blue',
   'lcars-pink': 'bg-lcars-pink', 'lcars-tan': 'bg-lcars-tan',
