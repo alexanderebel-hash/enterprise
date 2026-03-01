@@ -115,6 +115,16 @@ export default function LoginPage() {
           })}
         </div>
 
+        {/* Rotating Quote */}
+        <div className={`mt-8 text-center transition-all duration-500 ${quoteFade ? 'opacity-100' : 'opacity-0'}`} data-testid="login-quote">
+          <p className="font-lcars-body text-white/60 text-sm italic max-w-md mx-auto leading-relaxed">
+            &laquo;{quote.text}&raquo;
+          </p>
+          <p className="font-lcars text-lcars-blue/50 text-[9px] tracking-[0.25em] mt-2">
+            {quote.author.toUpperCase()}
+          </p>
+        </div>
+
         {error && (
           <div className="mt-6 text-center text-lcars-red tracking-wider uppercase text-sm font-lcars" data-testid="login-error">
             {error}
