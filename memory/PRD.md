@@ -39,6 +39,10 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] **Article Edit/Delete** from detail view (Captain only, with confirmation dialog)
 - [x] **Chat Session History** - VERLAUF panel to browse and load previous chat sessions
 - [x] **Stardate** calculation and display throughout the app
+- [x] **Interactive Enterprise Map** - SVG cross-section with 8 real-world locations as ship sections
+- [x] **Location Ticket System** - Create/manage technical issues per location, ticket priorities & statuses
+- [x] **Exterior/Cross-section Views** - Starfield + internal deck view with warp core, grid lines
+- [x] **Blinking Hotspots** - Locations with open tickets pulse/glow, critical issues in red
 - [x] 100% test pass rate across all iterations
 
 ## Login Credentials
