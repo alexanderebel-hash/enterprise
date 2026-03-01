@@ -293,6 +293,34 @@ Schema: [KATEGORIE] - [Titel] - [Datum].pdf
         ]
         await db.articles.insert_many(articles)
 
+    # Seed locations (Enterprise sections)
+    loc_count = await db.locations.count_documents({})
+    if loc_count == 0:
+        locations = [
+            {"location_id": "bruecke", "name": "Baumschulenstr. 24", "ship_section": "HAUPTBRUECKE", "deck": "Deck 1", "description": "Zentrale / Hauptstandort", "color": "#FF9900", "x": 680, "y": 72},
+            {"location_id": "sterndamm", "name": "WG Sterndamm", "ship_section": "MANNSCHAFTSQUARTIERE", "deck": "Deck 4-8", "description": "Wohngruppe Sterndamm", "color": "#9999FF", "x": 560, "y": 140},
+            {"location_id": "kupfer_gross", "name": "WG Kupferkessel gross", "ship_section": "MASCHINENRAUM", "deck": "Deck 36", "description": "Wohngruppe Kupferkessel gross", "color": "#CC6666", "x": 400, "y": 280},
+            {"location_id": "kupfer_klein", "name": "WG Kupferkessel klein", "ship_section": "SHUTTLEHANGAR", "deck": "Deck 4", "description": "Wohngruppe Kupferkessel klein", "color": "#CC99CC", "x": 280, "y": 240},
+            {"location_id": "drachenwiese", "name": "WG Drachenwiese", "ship_section": "KRANKENSTATION", "deck": "Deck 12", "description": "Wohngruppe Drachenwiese", "color": "#FFCC99", "x": 620, "y": 180},
+            {"location_id": "drachenblick", "name": "WG Drachenblick", "ship_section": "ZEHN VORNE", "deck": "Deck 10", "description": "Wohngruppe Drachenblick", "color": "#FFFF99", "x": 780, "y": 150},
+            {"location_id": "hebron", "name": "Haus Hebron", "ship_section": "FRACHTRAUM", "deck": "Deck 33", "description": "Haus Hebron", "color": "#9977AA", "x": 340, "y": 340},
+            {"location_id": "aussentour", "name": "Aussentour", "ship_section": "AUSSENMISSION", "deck": "Shuttle", "description": "Aussentour / Mobiler Einsatz", "color": "#4455FF", "x": 120, "y": 350},
+        ]
+        await db.locations.insert_many(locations)
+
+    # Seed example tickets
+    ticket_count = await db.tickets.count_documents({})
+    if ticket_count == 0:
+        now = datetime.now(timezone.utc).isoformat()
+        tickets = [
+            {"ticket_id": str(uuid.uuid4()), "title": "Drucker druckt nicht", "description": "HP LaserJet im Buero reagiert nicht auf Druckauftraege", "location_id": "bruecke", "priority": "high", "status": "offen", "created_by": "captain-p", "created_at": now},
+            {"ticket_id": str(uuid.uuid4()), "title": "WLAN Verbindungsabbrueche", "description": "Bewohner berichten ueber haeufige WLAN-Abbrueche im 2. OG", "location_id": "sterndamm", "priority": "critical", "status": "offen", "created_by": "captain-p", "created_at": now},
+            {"ticket_id": str(uuid.uuid4()), "title": "Medifox Update noetig", "description": "Neues Medifox Update 23.4 muss installiert werden", "location_id": "kupfer_gross", "priority": "normal", "status": "offen", "created_by": "captain-p", "created_at": now},
+            {"ticket_id": str(uuid.uuid4()), "title": "iPad Neukonfiguration", "description": "3 neue iPads muessen mit Intune konfiguriert werden", "location_id": "drachenwiese", "priority": "normal", "status": "in_bearbeitung", "created_by": "captain-p", "created_at": now},
+            {"ticket_id": str(uuid.uuid4()), "title": "Outlook Kalender sync", "description": "Kalender synchronisiert nicht mit Exchange", "location_id": "drachenblick", "priority": "high", "status": "offen", "created_by": "captain-p", "created_at": now},
+        ]
+        await db.tickets.insert_many(tickets)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await seed_data()
