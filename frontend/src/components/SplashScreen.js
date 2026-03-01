@@ -176,6 +176,8 @@ export default function SplashScreen({ onComplete }) {
   // Fade out and complete
   useEffect(() => {
     if (!showQuote) return;
+    // Set sessionStorage early so even if user refreshes during fadeout, splash won't reshow
+    sessionStorage.setItem('lcars_splash_shown', 'true');
     const t = setTimeout(() => setFadeOut(true), 2800);
     const t2 = setTimeout(() => onComplete(), 3500);
     return () => { clearTimeout(t); clearTimeout(t2); };
