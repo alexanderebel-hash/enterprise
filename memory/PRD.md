@@ -48,7 +48,12 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] **Standort-Status Live Feed** - Real-time overview of all locations with open tickets, auto-refresh every 30s
 - [x] **Enhanced Dashboard Stats** - Shows total open tickets, alarm status (ROT/GRUEN), location count
 - [x] **Interaktive Bruecken-Stationen** (2026-03-01) - 7 klickbare Hotspots auf der Bruecke: CONN, OPS, TAKTIK, TECHNIK, WISSENSCHAFT, KOMMANDOSESSEL, HAUPTBILDSCHIRM. Mit Hover-Effekten, LCARS-Glow, Labels-Toggle, und Detail-Modals (Funktion, Offizier, Beschreibung)
-- [x] 100% test pass rate across all iterations (7 iterations)
+- [x] 100% test pass rate across all iterations (8 iterations)
+
+## Production Changes (2026-03-01)
+- [x] **CRA → Vite 6 Migration** - react-scripts entfernt, Vite 6 + @vitejs/plugin-react, alle .js → .jsx, REACT_APP_* → VITE_*, ~10x schnellerer Dev-Server
+- [x] **Hardcoded Credentials → ENV** - SEED_CAPTAIN_PASSWORD und SEED_NUMMER_EINS_PASSWORD als Environment-Variablen
+- [x] **Scribe-Import Feature** - POST /api/articles/import: Akzeptiert Markdown/PDF/HTML, Auto-Kategorisierung aus Dateiname [KATEGORIE]-Titel.ext, Claude-Summary, Auto-Tags. Frontend: Drag-and-Drop Upload-Zone im LOGBUCH
 
 ## Login Credentials
 - Captain P: username `captain`, password `engage`
