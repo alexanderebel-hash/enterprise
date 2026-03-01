@@ -108,5 +108,20 @@ export const api = {
     return res.json();
   },
 
+  importBatch: async (token, zipFile) => {
+    const formData = new FormData();
+    formData.append('file', zipFile);
+    const res = await fetch(`${API}/api/articles/import-batch`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Batch-Importfehler' }));
+      throw new Error(err.detail || `Fehler ${res.status}`);
+    }
+    return res.json();
+  },
+
   getStardate: () => request('/api/stardate'),
 };
