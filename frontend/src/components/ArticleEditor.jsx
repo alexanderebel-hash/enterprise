@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { Save, ArrowLeft, Loader2, Tag, X, Mic, Square } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, Tag, X, Mic, Square, Upload, FileText } from 'lucide-react';
 import { useLCARSSound } from '../hooks/useLCARSSound';
 
 export default function ArticleEditor({ onNavigate, editArticleId }) {
