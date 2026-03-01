@@ -508,3 +508,55 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
 @app.get("/api/health")
 async def health():
     return {"status": "online", "stardate": datetime.now(timezone.utc).isoformat(), "ship": "USS Enterprise NCC-1701-D"}
+
+# --- Whisper Speech-to-Text ---
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Transcribe audio using OpenAI Whisper - for Captain's Log voice entries."""
+    allowed_types = ["audio/webm", "audio/mp3", "audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg", "audio/m4a", "audio/x-m4a", "video/webm"]
+    if file.content_type and not any(t in file.content_type for t in ["audio", "video/webm"]):
+        raise HTTPException(status_code=400, detail=f"Nicht unterstuetztes Audio-Format: {file.content_type}")
+
+    try:
+        content = await file.read()
+        if len(content) > 25 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Datei zu gross (max 25MB)")
+
+        # Write to temp file
+        suffix = ".webm"
+        if file.filename:
+            suffix = "." + file.filename.split(".")[-1] if "." in file.filename else ".webm"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        with open(tmp_path, "rb") as audio_file:
+            response = await stt.transcribe(
+                file=audio_file,
+                model="whisper-1",
+                response_format="json",
+                language="de",
+                prompt="Persoenlicher Logbucheintrag. IT-Dokumentation, Wissensdatenbank, Anleitung, Troubleshooting."
+            )
+
+        # Clean up temp file
+        os.unlink(tmp_path)
+
+        return {"text": response.text, "status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transkriptionsfehler: {str(e)}")
+
+# --- Stardate calculator ---
+@app.get("/api/stardate")
+async def get_stardate():
+    """Calculate a TNG-style stardate."""
+    now = datetime.now(timezone.utc)
+    # TNG stardate formula: based on year
+    year_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+    year_progress = (now - year_start).total_seconds() / (365.25 * 24 * 3600)
+    stardate = 41000 + (now.year - 2023) * 1000 + year_progress * 1000
+    return {"stardate": f"{stardate:.1f}", "earth_date": now.isoformat()}
+
