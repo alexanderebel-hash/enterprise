@@ -62,4 +62,21 @@ export const api = {
     request('/api/chat/sessions', { headers: getHeaders(token) }),
 
   health: () => request('/api/health'),
+
+  transcribe: async (token, audioBlob) => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'logbuch.webm');
+    const res = await fetch(`${API}/api/transcribe`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Transkriptionsfehler' }));
+      throw new Error(err.detail || `Fehler ${res.status}`);
+    }
+    return res.json();
+  },
+
+  getStardate: () => request('/api/stardate'),
 };
