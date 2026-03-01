@@ -266,6 +266,54 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
         </div>
       </div>
 
+      {/* File Import Section */}
+      <div
+        data-testid="file-import-zone"
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        className={`border-2 border-dashed rounded-2xl p-5 mb-6 transition-all cursor-pointer ${
+          dragOver ? 'border-lcars-orange bg-lcars-orange/10' : 'border-lcars-tan/30 hover:border-lcars-tan/60'
+        }`}
+        onClick={() => !isImporting && fileInputRef.current?.click()}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md,.txt,.markdown,.html,.htm,.pdf"
+          className="hidden"
+          data-testid="file-import-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileDrop(file);
+            e.target.value = '';
+          }}
+        />
+        <div className="flex items-center gap-4">
+          {isImporting ? (
+            <>
+              <Loader2 size={28} className="text-lcars-orange animate-spin flex-shrink-0" />
+              <div>
+                <p className="font-lcars text-lcars-orange text-sm tracking-[0.2em]">DATEI WIRD ANALYSIERT...</p>
+                <p className="font-lcars text-lcars-gray text-[9px] tracking-wider mt-1">CLAUDE GENERIERT ZUSAMMENFASSUNG</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-xl bg-lcars-tan/10 border border-lcars-tan/30 flex items-center justify-center flex-shrink-0">
+                {dragOver ? <FileText size={24} className="text-lcars-orange" /> : <Upload size={24} className="text-lcars-tan" />}
+              </div>
+              <div>
+                <p className="font-lcars text-lcars-tan text-sm tracking-[0.2em]">SCRIBE-IMPORT</p>
+                <p className="font-lcars-body text-lcars-gray text-xs mt-1">
+                  Drag & Drop oder klicken — Markdown, PDF, HTML. Auto-Kategorisierung aus Dateiname: <span className="text-lcars-blue">[KATEGORIE] - Titel.ext</span>
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-5">
         {/* Title */}
         <div>
