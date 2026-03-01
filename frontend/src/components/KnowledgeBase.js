@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Search, ChevronRight, FolderOpen, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../AuthContext';
+import { Search, ChevronRight, FolderOpen, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLCARSSound } from '../hooks/useLCARSSound';
 
 const COLOR_MAP = {
   'lcars-red': 'bg-lcars-red', 'lcars-orange': 'bg-lcars-orange', 'lcars-blue': 'bg-lcars-blue',
@@ -13,12 +15,16 @@ const BORDER_MAP = {
 };
 
 export default function KnowledgeBase({ onNavigate, initialCategory }) {
+  const { user, token } = useAuth();
+  const { play } = useLCARSSound();
+  const isCaptain = user?.role === 'captain';
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(initialCategory || null);
   const [search, setSearch] = useState('');
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(console.error);
@@ -33,10 +39,30 @@ export default function KnowledgeBase({ onNavigate, initialCategory }) {
   }, [activeCategory, search]);
 
   const handleViewArticle = async (articleId) => {
+    play('panelOpen');
     try {
       const art = await api.getArticle(articleId);
       setSelectedArticle(art);
     } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteArticle = async () => {
+    if (!selectedArticle) return;
+    try {
+      await api.deleteArticle(token, selectedArticle.article_id);
+      play('computerAck');
+      setSelectedArticle(null);
+      setShowDeleteConfirm(false);
+      // Refresh articles
+      const params = {};
+      if (activeCategory) params.category = activeCategory;
+      if (search) params.search = search;
+      const updated = await api.getArticles(params);
+      setArticles(updated);
+    } catch (e) {
+      play('alert');
       console.error(e);
     }
   };
@@ -47,7 +73,7 @@ export default function KnowledgeBase({ onNavigate, initialCategory }) {
       <div className="animate-fade-in max-w-4xl" data-testid="article-detail">
         <button
           data-testid="back-to-list-btn"
-          onClick={() => setSelectedArticle(null)}
+          onClick={() => { play('navigate'); setSelectedArticle(null); }}
           className="flex items-center gap-2 text-lcars-blue font-lcars text-sm tracking-wider mb-4 hover:text-lcars-orange transition-colors"
         >
           <ArrowLeft size={16} /> ZURUECK ZUR DATENBANK
@@ -57,10 +83,55 @@ export default function KnowledgeBase({ onNavigate, initialCategory }) {
           {/* Article header */}
           <div className={`${COLOR_MAP[cat?.color] || 'bg-lcars-orange'} px-6 py-3 flex items-center justify-between`}>
             <span className="text-black font-lcars text-xs tracking-[0.2em] font-bold">{cat?.name || 'ARTIKEL'}</span>
-            <span className="text-black/60 font-lcars text-[10px]">
-              {new Date(selectedArticle.created_at).toLocaleDateString('de-DE')}
-            </span>
+            <div className="flex items-center gap-3">
+              {isCaptain && (
+                <>
+                  <button
+                    data-testid="edit-article-btn"
+                    onClick={() => { play('buttonPress'); onNavigate('create', { editId: selectedArticle.article_id }); }}
+                    className="text-black/70 hover:text-black transition-colors"
+                    title="Bearbeiten"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    data-testid="delete-article-btn"
+                    onClick={() => { play('alert'); setShowDeleteConfirm(true); }}
+                    className="text-black/70 hover:text-black transition-colors"
+                    title="Loeschen"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              )}
+              <span className="text-black/60 font-lcars text-[10px]">
+                {new Date(selectedArticle.created_at).toLocaleDateString('de-DE')}
+              </span>
+            </div>
           </div>
+
+          {/* Delete confirmation */}
+          {showDeleteConfirm && (
+            <div className="bg-lcars-red/10 border-b border-lcars-red/30 px-6 py-4 flex items-center justify-between" data-testid="delete-confirm">
+              <span className="text-lcars-red font-lcars text-sm tracking-wider">ARTIKEL WIRKLICH LOESCHEN?</span>
+              <div className="flex gap-2">
+                <button
+                  data-testid="confirm-delete-btn"
+                  onClick={handleDeleteArticle}
+                  className="bg-lcars-red text-black rounded-full px-5 py-1.5 font-lcars text-xs tracking-wider font-bold hover:bg-white transition-all"
+                >
+                  LOESCHEN
+                </button>
+                <button
+                  data-testid="cancel-delete-btn"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="bg-lcars-gray/20 text-lcars-gray rounded-full px-5 py-1.5 font-lcars text-xs tracking-wider hover:bg-lcars-gray/30 transition-all"
+                >
+                  ABBRECHEN
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="p-6">
             <h1 className="text-2xl md:text-3xl font-bold text-lcars-orange font-lcars tracking-[0.15em] uppercase mb-2" data-testid="article-title">
@@ -112,7 +183,7 @@ export default function KnowledgeBase({ onNavigate, initialCategory }) {
       <div className="flex flex-wrap gap-2" data-testid="category-filters">
         <button
           data-testid="cat-filter-all"
-          onClick={() => setActiveCategory(null)}
+          onClick={() => { play('buttonPress'); setActiveCategory(null); }}
           className={`rounded-full px-5 py-1.5 font-lcars text-xs tracking-[0.2em] transition-all ${!activeCategory ? 'bg-lcars-orange text-black' : 'bg-lcars-orange/10 text-lcars-orange hover:bg-lcars-orange/20'}`}
         >
           ALLE
@@ -121,7 +192,7 @@ export default function KnowledgeBase({ onNavigate, initialCategory }) {
           <button
             key={cat.category_id}
             data-testid={`cat-filter-${cat.category_id}`}
-            onClick={() => setActiveCategory(cat.category_id)}
+            onClick={() => { play('buttonPress'); setActiveCategory(cat.category_id); }}
             className={`rounded-full px-5 py-1.5 font-lcars text-xs tracking-[0.2em] transition-all ${activeCategory === cat.category_id
               ? `${COLOR_MAP[cat.color] || 'bg-lcars-orange'} text-black`
               : `${COLOR_MAP[cat.color] || 'bg-lcars-orange'}/10 text-${cat.color || 'lcars-orange'} hover:opacity-80`
