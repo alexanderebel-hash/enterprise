@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import {
   LayoutDashboard, Database, MessageSquare, PlusCircle,
   LogOut, Menu, X, ChevronRight
 } from 'lucide-react';
-import { getRandomQuote } from '../data/quotes';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'BRUECKE', icon: LayoutDashboard, color: 'bg-lcars-orange' },
