@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { Send, Loader2, Terminal, Trash2, History, Clock, ChevronRight } from 'lucide-react';
+import { Send, Loader2, Terminal, Trash2, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useLCARSSound } from '../hooks/useLCARSSound';
 
