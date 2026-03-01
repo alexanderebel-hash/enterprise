@@ -32,6 +32,9 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] Role-based access control (frontend + backend)
 - [x] Seeded 6 articles about process recording tools (Scribe, Tango, FlowShare, etc.)
 - [x] 5 categories: Troubleshooting, Anleitung, Prozess, Konfiguration, Aufzeichnung
+- [x] **High-end Trikorder-Scan Splash Animation** with canvas-based radar sweep, particles, and scan readouts
+- [x] **25 Star Trek TNG Zitate auf Deutsch** - rotating on login, dashboard, and splash screen
+- [x] Splash screen with progressive system initialization display
 - [x] 100% test pass rate (backend + frontend)
 
 ## Login Credentials
