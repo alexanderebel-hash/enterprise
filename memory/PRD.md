@@ -34,8 +34,12 @@ Star Trek TNG LCARS-themed knowledge database and dashboard for IT knowledge cap
 - [x] 5 categories: Troubleshooting, Anleitung, Prozess, Konfiguration, Aufzeichnung
 - [x] **High-end Trikorder-Scan Splash Animation** with canvas-based radar sweep, particles, and scan readouts
 - [x] **25 Star Trek TNG Zitate auf Deutsch** - rotating on login, dashboard, and splash screen
-- [x] Splash screen with progressive system initialization display
-- [x] 100% test pass rate (backend + frontend)
+- [x] **TNG Sound Effects** - Web Audio API synthesized sounds: button press, navigation, computer ack, alert, data transmit, scan, logbuch fanfare, recording start/stop, startup
+- [x] **Persoenlicher Logbucheintrag** - Voice recording with OpenAI Whisper transcription, auto-generates article with "Persoenlicher Logbucheintrag, [Name], Sternzeit [X]"
+- [x] **Article Edit/Delete** from detail view (Captain only, with confirmation dialog)
+- [x] **Chat Session History** - VERLAUF panel to browse and load previous chat sessions
+- [x] **Stardate** calculation and display throughout the app
+- [x] 100% test pass rate across all iterations
 
 ## Login Credentials
 - Captain P: username `captain`, password `engage`
