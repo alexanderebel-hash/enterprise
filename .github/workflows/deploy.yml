@@ -1,0 +1,103 @@
+name: Build & Deploy Enterprise LCARS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ACR_NAME: domusvitacontrollingprodacr
+  RESOURCE_GROUP: domusvita-controlling-prod
+  BACKEND_APP: enterprise-backend-prod
+  FRONTEND_APP: enterprise-frontend-prod
+  BACKEND_URL: https://enterprise-api.domusvita-portal.de
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build & Push Backend
+        run: |
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image enterprise-backend:${{ github.sha }} \
+            --image enterprise-backend:latest \
+            --file backend/Dockerfile \
+            backend/ \
+            --resource-group ${{ env.RESOURCE_GROUP }}
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build & Push Frontend
+        run: |
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image enterprise-frontend:${{ github.sha }} \
+            --image enterprise-frontend:latest \
+            --build-arg VITE_BACKEND_URL=${{ env.BACKEND_URL }} \
+            --file frontend/Dockerfile \
+            frontend/ \
+            --resource-group ${{ env.RESOURCE_GROUP }}
+
+  deploy-backend:
+    needs: build-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Backend
+        run: |
+          az containerapp update \
+            --name ${{ env.BACKEND_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/enterprise-backend:${{ github.sha }}
+
+      - name: Health Check
+        run: |
+          sleep 30
+          STATUS=$(curl -sf ${{ env.BACKEND_URL }}/api/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])")
+          if [ "$STATUS" != "healthy" ]; then
+            echo "Health check failed: $STATUS"
+            exit 1
+          fi
+          echo "Backend healthy"
+
+  deploy-frontend:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Frontend
+        run: |
+          az containerapp update \
+            --name ${{ env.FRONTEND_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/enterprise-frontend:${{ github.sha }}
+
+      - name: Health Check
+        run: |
+          sleep 20
+          curl -sf https://enterprise.domusvita-portal.de/health || (echo "Frontend health check failed" && exit 1)
+          echo "Frontend healthy"
