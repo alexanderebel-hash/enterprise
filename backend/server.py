@@ -43,60 +43,77 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
+# --- Startup Validation ---
+if not JWT_SECRET or len(JWT_SECRET) < 16:
+    raise RuntimeError("JWT_SECRET must be set (min 16 chars)")
+if not MONGO_URL:
+    raise RuntimeError("MONGO_URL must be set")
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- AI Clients ---
-anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+# --- AI Clients (with timeouts) ---
+anthropic_client = AsyncAnthropic(
+    api_key=ANTHROPIC_API_KEY,
+    timeout=60.0,
+    max_retries=2,
+)
+openai_client = AsyncOpenAI(
+    api_key=OPENAI_API_KEY,
+    timeout=120.0,
+    max_retries=2,
+)
 
 # --- Rate Limiter ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 # --- Models ---
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=1, max_length=128)
 
 class TokenResponse(BaseModel):
     token: str
     user: dict
 
 class ArticleCreate(BaseModel):
-    title: str
-    content: str
-    category_id: str
+    title: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1, max_length=500_000)
+    category_id: str = Field(..., max_length=50)
     tags: List[str] = []
-    summary: str = ""
+    summary: str = Field(default="", max_length=2000)
 
 class ArticleUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    category_id: Optional[str] = None
+    title: Optional[str] = Field(default=None, max_length=500)
+    content: Optional[str] = Field(default=None, max_length=500_000)
+    category_id: Optional[str] = Field(default=None, max_length=50)
     tags: Optional[List[str]] = None
-    summary: Optional[str] = None
+    summary: Optional[str] = Field(default=None, max_length=2000)
 
 class CategoryCreate(BaseModel):
-    name: str
-    description: str = ""
-    icon: str = "folder"
-    color: str = "lcars-orange"
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(default="", max_length=500)
+    icon: str = Field(default="folder", max_length=50)
+    color: str = Field(default="lcars-orange", max_length=50)
 
 class ChatMessage(BaseModel):
-    message: str
-    session_id: Optional[str] = None
+    message: str = Field(..., min_length=1, max_length=10_000)
+    session_id: Optional[str] = Field(default=None, max_length=100)
+
+VALID_PRIORITIES = {"low", "normal", "high", "critical"}
+VALID_STATUSES = {"offen", "in_bearbeitung", "erledigt"}
 
 class TicketCreate(BaseModel):
-    title: str
-    description: str = ""
-    location_id: str
-    priority: str = "normal"  # low, normal, high, critical
-    status: str = "offen"  # offen, in_bearbeitung, erledigt
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5000)
+    location_id: str = Field(..., max_length=50)
+    priority: str = Field(default="normal", max_length=20)
+    status: str = Field(default="offen", max_length=20)
 
 class TicketUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    priority: Optional[str] = None
-    status: Optional[str] = None
+    title: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    priority: Optional[str] = Field(default=None, max_length=20)
+    status: Optional[str] = Field(default=None, max_length=20)
 
 # --- DB ---
 mongo_client = AsyncIOMotorClient(
@@ -370,6 +387,18 @@ Schema: [KATEGORIE] - [Titel] - [Datum].pdf
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Nummer Eins API starting up")
+    # Create indexes for performance
+    await db.users.create_index("username", unique=True)
+    await db.users.create_index("user_id", unique=True)
+    await db.articles.create_index("article_id", unique=True)
+    await db.articles.create_index("category_id")
+    await db.articles.create_index([("created_at", -1)])
+    await db.tickets.create_index("ticket_id", unique=True)
+    await db.tickets.create_index("location_id")
+    await db.chat_history.create_index([("session_id", 1), ("user_id", 1), ("created_at", 1)])
+    await db.chat_history.create_index("created_at", expireAfterSeconds=90 * 24 * 3600)  # 90-day TTL
+    await db.categories.create_index("category_id", unique=True)
+    logger.info("Database indexes ensured")
     await seed_data()
     logger.info("Seed data check complete")
     yield
@@ -397,8 +426,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # --- Auth Helpers ---
@@ -406,7 +435,7 @@ def create_token(user_id: str, role: str):
     payload = {
         "sub": user_id,
         "role": role,
-        "exp": datetime.now(timezone.utc) + timedelta(days=7)
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
@@ -469,11 +498,12 @@ async def get_articles(category: Optional[str] = None, search: Optional[str] = N
     if category:
         query["category_id"] = category
     if search:
+        safe_search = re.escape(search)
         query["$or"] = [
-            {"title": {"$regex": search, "$options": "i"}},
-            {"content": {"$regex": search, "$options": "i"}},
-            {"tags": {"$regex": search, "$options": "i"}},
-            {"summary": {"$regex": search, "$options": "i"}},
+            {"title": {"$regex": safe_search, "$options": "i"}},
+            {"content": {"$regex": safe_search, "$options": "i"}},
+            {"tags": {"$regex": safe_search, "$options": "i"}},
+            {"summary": {"$regex": safe_search, "$options": "i"}},
         ]
     articles = await db.articles.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
     return articles
@@ -699,7 +729,7 @@ Beginne deine Antworten NICHT mit 'Computer hier' oder aehnlichem - antworte dir
         return {"response": answer, "session_id": session_id}
     except Exception as e:
         logger.error("Chat error", extra={"error": str(e), "user_id": user["user_id"]})
-        raise HTTPException(status_code=500, detail=f"Computer-Fehler: {str(e)}")
+        raise HTTPException(status_code=500, detail="Interner Serverfehler. Bitte spaeter erneut versuchen.")
 
 @app.get("/api/chat/history")
 async def get_chat_history(session_id: Optional[str] = None, user: dict = Depends(get_current_user)):
@@ -727,7 +757,8 @@ async def health_check():
         await db.command("ping")
         db_status = "healthy"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        logger.error("DB health check failed", extra={"error": str(e)})
+        db_status = "unhealthy"
     return {
         "status": "healthy" if db_status == "healthy" else "degraded",
         "database": db_status,
@@ -851,75 +882,6 @@ def extract_file_content(content: bytes, filename: str) -> str:
             os.unlink(tmp_path)
     raise ValueError(f"Nicht unterstuetztes Format: {ext}")
 
-@app.post("/api/articles/import")
-async def import_article(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
-    """Import a document file (Markdown, PDF, HTML) as a new knowledge article."""
-    require_captain(user)
-
-    allowed_ext = ['.md', '.txt', '.markdown', '.html', '.htm', '.pdf']
-    ext = os.path.splitext(file.filename or '')[1].lower()
-    if ext not in allowed_ext:
-        raise HTTPException(status_code=400, detail=f"Nicht unterstuetztes Format: {ext}. Erlaubt: {', '.join(allowed_ext)}")
-
-    content_bytes = await file.read()
-    if len(content_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Datei zu gross (max 10MB)")
-
-    # Extract text
-    try:
-        text_content = extract_file_content(content_bytes, file.filename)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    if not text_content.strip():
-        raise HTTPException(status_code=400, detail="Keine Textinhalte in der Datei gefunden")
-
-    # Parse filename for metadata
-    parsed = parse_filename(file.filename or 'import')
-    title = parsed["title"]
-    category_id = parsed["category_id"] or "anleitung"
-
-    # Generate summary via Claude
-    summary = ""
-    try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"import-{str(uuid.uuid4())[:8]}",
-            system_message="Du bist ein IT-Dokumentationsassistent. Erstelle eine kurze, praegnante Zusammenfassung (2-3 Saetze) des folgenden Textes auf Deutsch. Fokus auf den praktischen Nutzen fuer IT-Mitarbeiter.",
-        )
-        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
-        summary = await chat.send_message(UserMessage(text=f"Erstelle eine Zusammenfassung fuer folgenden Text:\n\n{text_content[:4000]}"))
-    except Exception as e:
-        summary = f"(Auto-Import aus {file.filename})"
-
-    # Auto-detect tags from content
-    tag_keywords = {
-        "windows": "windows", "linux": "linux", "macos": "macos", "mac": "macos",
-        "drucker": "drucker", "netzwerk": "netzwerk", "wlan": "wlan", "wifi": "wlan",
-        "email": "email", "outlook": "outlook", "exchange": "exchange",
-        "vpn": "vpn", "firewall": "firewall", "backup": "backup",
-        "intune": "intune", "medifox": "medifox", "ipad": "ipad",
-    }
-    text_lower = text_content.lower()
-    tags = list(set(v for k, v in tag_keywords.items() if k in text_lower))
-
-    now = datetime.now(timezone.utc).isoformat()
-    doc = {
-        "article_id": str(uuid.uuid4()),
-        "title": title,
-        "content": text_content,
-        "summary": summary,
-        "category_id": category_id,
-        "tags": tags,
-        "created_by": user["user_id"],
-        "created_at": now,
-        "updated_at": now,
-        "imported_from": file.filename,
-    }
-    await db.articles.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
-
 @app.post("/api/articles/import-batch")
 async def import_articles_batch(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     """Import a ZIP file containing multiple documents as knowledge articles."""
@@ -964,16 +926,8 @@ async def import_articles_batch(file: UploadFile = File(...), user: dict = Depen
                     category_id = parsed["category_id"] or "anleitung"
 
                     # Generate summary via Claude
-                    summary = ""
-                    try:
-                        chat = LlmChat(
-                            api_key=EMERGENT_LLM_KEY,
-                            session_id=f"batch-{str(uuid.uuid4())[:8]}",
-                            system_message="Du bist ein IT-Dokumentationsassistent. Erstelle eine kurze, praegnante Zusammenfassung (2-3 Saetze) des folgenden Textes auf Deutsch. Fokus auf den praktischen Nutzen fuer IT-Mitarbeiter.",
-                        )
-                        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
-                        summary = await chat.send_message(UserMessage(text=f"Erstelle eine Zusammenfassung:\n\n{text_content[:4000]}"))
-                    except Exception:
+                    summary = await generate_summary(text_content)
+                    if not summary:
                         summary = f"(Auto-Import aus {basename})"
 
                     # Auto-detect tags
@@ -1004,7 +958,8 @@ async def import_articles_batch(file: UploadFile = File(...), user: dict = Depen
                     doc.pop("_id", None)
                     results["imported"].append({"file": basename, "title": title, "category": category_id, "article_id": doc["article_id"]})
                 except Exception as e:
-                    results["errors"].append({"file": basename, "error": str(e)})
+                    logger.warning("Batch import file error", extra={"file": basename, "error": str(e)})
+                    results["errors"].append({"file": basename, "error": "Importfehler bei dieser Datei"})
 
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Ungueltige ZIP-Datei")
@@ -1037,24 +992,24 @@ async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(ge
             tmp.write(content)
             tmp_path = tmp.name
 
-        with open(tmp_path, "rb") as audio_file:
-            response = await openai_client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="json",
-                language="de",
-                prompt="Persoenlicher Logbucheintrag. IT-Dokumentation, Wissensdatenbank, Anleitung, Troubleshooting."
-            )
-
-        # Clean up temp file
-        os.unlink(tmp_path)
+        try:
+            with open(tmp_path, "rb") as audio_file:
+                response = await openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    response_format="json",
+                    language="de",
+                    prompt="Persoenlicher Logbucheintrag. IT-Dokumentation, Wissensdatenbank, Anleitung, Troubleshooting."
+                )
+        finally:
+            os.unlink(tmp_path)
 
         return {"text": response.text, "status": "success"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Transcription error", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail=f"Transkriptionsfehler: {str(e)}")
+        raise HTTPException(status_code=500, detail="Transkriptionsfehler. Bitte spaeter erneut versuchen.")
 
 # --- Stardate calculator ---
 @app.get("/api/stardate")

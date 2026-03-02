@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { Shield, User } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { getRandomQuote } from '../data/quotes';
 import { useLCARSSound } from '../hooks/useLCARSSound';
 
@@ -8,7 +8,8 @@ export default function LoginPage() {
   const { login, loading } = useAuth();
   const { play } = useLCARSSound();
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [quote, setQuote] = useState(getRandomQuote());
   const [quoteFade, setQuoteFade] = useState(true);
 
@@ -24,46 +25,26 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const roles = [
-    {
-      id: 'captain',
-      label: 'CAPTAIN P',
-      subtitle: 'Kommandant / Ersteller',
-      user: 'captain',
-      pass: 'engage',
-      icon: Shield,
-      color: 'lcars-orange',
-      desc: 'Vollzugriff auf alle Systeme. Artikel erstellen, bearbeiten und verwalten.',
-    },
-    {
-      id: 'nummer1',
-      label: 'NUMMER EINS',
-      subtitle: 'Erster Offizier / Leser',
-      user: 'nummer1',
-      pass: 'makeitso',
-      icon: User,
-      color: 'lcars-blue',
-      desc: 'Lesezugriff auf die Wissensdatenbank und Computer-Zugang.',
-    },
-  ];
-
-  const handleLogin = async (role) => {
-    setSelected(role.id);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      setError('Benutzername und Passwort erforderlich');
+      return;
+    }
     setError('');
     play('buttonPress');
     try {
-      await login(role.user, role.pass);
+      await login(username.trim(), password);
       play('accessGranted');
-    } catch (e) {
-      setError(e.message);
-      setSelected(null);
+    } catch (err) {
+      setError('Zugriff verweigert. Ungueltige Anmeldedaten.');
       play('alert');
     }
   };
 
   return (
     <div className="h-screen bg-black flex items-center justify-center p-4" data-testid="login-page">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-lg">
         {/* Header bar */}
         <div className="flex items-stretch mb-8">
           <div className="bg-lcars-orange rounded-tl-[40px] w-48 h-16 flex items-center pl-6">
@@ -84,41 +65,62 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {roles.map((role) => {
-            const Icon = role.icon;
-            const isActive = selected === role.id;
-            const borderColor = role.color === 'lcars-orange' ? 'border-lcars-orange' : 'border-lcars-blue';
-            const bgHover = role.color === 'lcars-orange' ? 'hover:bg-lcars-orange/10' : 'hover:bg-lcars-blue/10';
-            const textColor = role.color === 'lcars-orange' ? 'text-lcars-orange' : 'text-lcars-blue';
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="border-2 border-lcars-orange rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-full bg-lcars-orange/20 flex items-center justify-center">
+                <Shield className="text-lcars-orange" size={24} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-[0.2em] uppercase font-lcars text-lcars-orange">
+                  ANMELDUNG
+                </h2>
+                <p className="text-lcars-gray text-xs tracking-widest uppercase font-lcars">Crew-Identifikation</p>
+              </div>
+            </div>
 
-            return (
-              <button
-                key={role.id}
-                data-testid={`login-btn-${role.id}`}
-                onClick={() => handleLogin(role)}
-                disabled={loading}
-                className={`border-2 ${borderColor} rounded-2xl p-6 text-left transition-all duration-300 ${bgHover} ${isActive ? 'scale-95 opacity-70' : ''} disabled:opacity-50`}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-12 h-12 rounded-full bg-${role.color}/20 flex items-center justify-center`}>
-                    <Icon className={textColor} size={24} />
-                  </div>
-                  <div>
-                    <h2 className={`text-2xl font-bold tracking-[0.2em] uppercase font-lcars ${textColor}`}>
-                      {role.label}
-                    </h2>
-                    <p className="text-lcars-gray text-xs tracking-widest uppercase font-lcars">{role.subtitle}</p>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-sm font-lcars-body leading-relaxed">{role.desc}</p>
-                <div className={`mt-4 h-1 rounded-full bg-${role.color}/30`}>
-                  {isActive && <div className={`h-full bg-${role.color} rounded-full animate-pulse`} style={{ width: '60%' }} />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-lcars-tan text-xs tracking-widest uppercase font-lcars mb-2">
+                  Benutzername
+                </label>
+                <input
+                  type="text"
+                  data-testid="login-username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  autoFocus
+                  className="w-full bg-black/50 border border-lcars-orange/40 rounded-lg px-4 py-3 text-lcars-orange font-lcars-body focus:outline-none focus:border-lcars-orange transition-colors"
+                  placeholder="Crew-ID eingeben"
+                />
+              </div>
+              <div>
+                <label className="block text-lcars-tan text-xs tracking-widest uppercase font-lcars mb-2">
+                  Passwort
+                </label>
+                <input
+                  type="password"
+                  data-testid="login-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="w-full bg-black/50 border border-lcars-orange/40 rounded-lg px-4 py-3 text-lcars-orange font-lcars-body focus:outline-none focus:border-lcars-orange transition-colors"
+                  placeholder="Autorisierungscode"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              data-testid="login-submit"
+              disabled={loading}
+              className="w-full mt-6 bg-lcars-orange text-black font-lcars tracking-[0.2em] uppercase py-3 rounded-lg hover:bg-lcars-orange/80 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'AUTORISIERUNG...' : 'ZUGANG ANFORDERN'}
+            </button>
+          </div>
+        </form>
 
         {/* Rotating Quote */}
         <div className={`mt-8 text-center transition-all duration-500 ${quoteFade ? 'opacity-100' : 'opacity-0'}`} data-testid="login-quote">

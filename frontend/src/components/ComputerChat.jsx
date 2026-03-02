@@ -61,7 +61,8 @@ export default function ComputerChat() {
       setMessages(prev => [...prev, { role: 'computer', content: res.response }]);
       play('messageReceived');
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'computer', content: `Systemfehler: ${e.message}` }]);
+      console.error('Chat error:', e);
+      setMessages(prev => [...prev, { role: 'computer', content: 'Systemfehler: Die Anfrage konnte nicht verarbeitet werden. Bitte spaeter erneut versuchen.' }]);
       play('alert');
     } finally {
       setSending(false);

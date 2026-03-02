@@ -50,7 +50,8 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
         setSuccess(`ZIP-Import abgeschlossen: ${result.imported_count} Dateien importiert!`);
         setTimeout(() => setSuccess(''), 5000);
       } catch (e) {
-        setError(`Batch-Importfehler: ${e.message}`);
+        console.error('Batch import error:', e);
+        setError('Batch-Importfehler: Die Datei konnte nicht verarbeitet werden.');
         play('alert');
       } finally {
         setIsImporting(false);
@@ -80,7 +81,8 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
       setSuccess(`Datei "${file.name}" importiert und analysiert!`);
       setTimeout(() => setSuccess(''), 4000);
     } catch (e) {
-      setError(`Importfehler: ${e.message}`);
+      console.error('Import error:', e);
+      setError('Importfehler: Die Datei konnte nicht verarbeitet werden.');
       play('alert');
     } finally {
       setIsImporting(false);
@@ -179,7 +181,8 @@ export default function ArticleEditor({ onNavigate, editArticleId }) {
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch (e) {
-      setError(`Transkriptionsfehler: ${e.message}`);
+      console.error('Transcription error:', e);
+      setError('Transkriptionsfehler: Die Audiodatei konnte nicht verarbeitet werden.');
       play('alert');
     } finally {
       setIsTranscribing(false);
