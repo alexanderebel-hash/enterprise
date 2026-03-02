@@ -1,29 +1,56 @@
 import os
 import re
 import uuid
+import logging
+import tempfile
 from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
+from html.parser import HTMLParser
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-from emergentintegrations.llm.openai import OpenAISpeechToText
-import tempfile
+from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+from pythonjsonlogger import jsonlogger
 
+# --- Structured Logging ---
+handler = logging.StreamHandler()
+handler.setFormatter(jsonlogger.JsonFormatter(
+    fmt="%(asctime)s %(name)s %(levelname)s %(message)s"
+))
+logging.root.handlers = [handler]
+logging.root.setLevel(logging.INFO)
+logger = logging.getLogger("nummer-eins")
+
+# --- ENV vars ---
 MONGO_URL = os.environ.get("MONGO_URL")
-DB_NAME = os.environ.get("DB_NAME")
+DB_NAME = os.environ.get("DB_NAME", "lcars")
 JWT_SECRET = os.environ.get("JWT_SECRET")
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# --- AI Clients ---
+anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+# --- Rate Limiter ---
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 # --- Models ---
 class LoginRequest(BaseModel):
@@ -72,15 +99,26 @@ class TicketUpdate(BaseModel):
     status: Optional[str] = None
 
 # --- DB ---
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
+mongo_client = AsyncIOMotorClient(
+    MONGO_URL,
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=10000,
+    retryWrites=True,
+)
+db = mongo_client[DB_NAME]
 
 async def seed_data():
     """Seed initial users, categories, and articles if empty."""
+    # Passwords from ENV (no hardcoded credentials)
+    captain_password = os.environ.get("SEED_CAPTAIN_PASSWORD", "")
+    nummer_eins_password = os.environ.get("SEED_NUMMER_EINS_PASSWORD", "")
+    if not captain_password or not nummer_eins_password:
+        raise RuntimeError("SEED_CAPTAIN_PASSWORD and SEED_NUMMER_EINS_PASSWORD must be set")
+
     user_count = await db.users.count_documents({})
     if user_count == 0:
-        captain_hash = pwd_context.hash(os.environ.get("SEED_CAPTAIN_PASSWORD"))
-        nummer_eins_hash = pwd_context.hash(os.environ.get("SEED_NUMMER_EINS_PASSWORD"))
+        captain_hash = pwd_context.hash(captain_password)
+        nummer_eins_hash = pwd_context.hash(nummer_eins_password)
         await db.users.insert_many([
             {
                 "user_id": "captain-p",
@@ -101,6 +139,7 @@ async def seed_data():
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
         ])
+        logger.info("Seed users created")
 
     cat_count = await db.categories.count_documents({})
     if cat_count == 0:
@@ -112,6 +151,7 @@ async def seed_data():
             {"category_id": "aufzeichnung", "name": "AUFZEICHNUNG", "description": "Prozess-Aufzeichnung und Dokumentation", "icon": "video", "color": "lcars-tan"},
         ]
         await db.categories.insert_many(categories)
+        logger.info("Seed categories created")
 
     art_count = await db.articles.count_documents({})
     if art_count == 0:
@@ -293,6 +333,7 @@ Schema: [KATEGORIE] - [Titel] - [Datum].pdf
             }
         ]
         await db.articles.insert_many(articles)
+        logger.info("Seed articles created")
 
     # Seed locations (Enterprise sections)
     loc_count = await db.locations.count_documents({})
@@ -308,6 +349,7 @@ Schema: [KATEGORIE] - [Titel] - [Datum].pdf
             {"location_id": "aussentour", "name": "Aussentour", "ship_section": "AUSSENMISSION", "deck": "Shuttle", "description": "Aussentour / Mobiler Einsatz", "color": "#4455FF", "x": 120, "y": 350},
         ]
         await db.locations.insert_many(locations)
+        logger.info("Seed locations created")
 
     # Seed example tickets
     ticket_count = await db.tickets.count_documents({})
@@ -321,17 +363,39 @@ Schema: [KATEGORIE] - [Titel] - [Datum].pdf
             {"ticket_id": str(uuid.uuid4()), "title": "Outlook Kalender sync", "description": "Kalender synchronisiert nicht mit Exchange", "location_id": "drachenblick", "priority": "high", "status": "offen", "created_by": "captain-p", "created_at": now},
         ]
         await db.tickets.insert_many(tickets)
+        logger.info("Seed tickets created")
 
+
+# --- Lifespan (Graceful Startup + Shutdown) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Nummer Eins API starting up")
     await seed_data()
+    logger.info("Seed data check complete")
     yield
+    logger.info("Nummer Eins API shutting down")
+    mongo_client.close()
+    await anthropic_client.close()
+    await openai_client.close()
+    logger.info("All clients closed")
 
 app = FastAPI(title="Nummer Eins - LCARS Wissensdatenbank", lifespan=lifespan)
 
+# --- Rate Limiter Middleware ---
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Zu viele Anfragen. Bitte warten Sie einen Moment."}
+    )
+
+# --- CORS (restricted to FRONTEND_URL) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -365,11 +429,13 @@ def require_captain(user: dict):
 
 # --- Auth Endpoints ---
 @app.post("/api/auth/login")
-async def login(req: LoginRequest):
+@limiter.limit("5/minute")
+async def login(request: Request, req: LoginRequest):
     user = await db.users.find_one({"username": req.username}, {"_id": 0})
     if not user or not pwd_context.verify(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Ungueltige Anmeldedaten")
     token = create_token(user["user_id"], user["role"])
+    logger.info("User logged in", extra={"user_id": user["user_id"]})
     return {"token": token, "user": {k: v for k, v in user.items() if k != "password_hash"}}
 
 @app.get("/api/auth/me")
@@ -436,7 +502,6 @@ async def create_article(art: ArticleCreate, user: dict = Depends(get_current_us
     }
     await db.articles.insert_one(doc)
     doc.pop("_id", None)
-    from fastapi.responses import JSONResponse
     return JSONResponse(content=doc, status_code=201)
 
 @app.put("/api/articles/{article_id}")
@@ -458,6 +523,110 @@ async def delete_article(article_id: str, user: dict = Depends(get_current_user)
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
     return {"message": "Artikel geloescht"}
+
+# --- Scribe-Import Feature ---
+async def generate_summary(content: str, max_chars: int = 500) -> str:
+    """Generate a short summary of article content using Claude."""
+    try:
+        response = await anthropic_client.messages.create(
+            model="claude-sonnet-4-5-20250514",
+            max_tokens=200,
+            messages=[{
+                "role": "user",
+                "content": f"Fasse folgenden IT-Artikel in 1-2 Saetzen auf Deutsch zusammen:\n\n{content[:3000]}"
+            }]
+        )
+        return response.content[0].text[:max_chars]
+    except Exception as e:
+        logger.warning("Summary generation failed", extra={"error": str(e)})
+        return ""
+
+
+class _HTMLTextExtractor(HTMLParser):
+    """Simple HTML to plain text extractor."""
+    def __init__(self):
+        super().__init__()
+        self._result = []
+
+    def handle_data(self, data):
+        self._result.append(data)
+
+    def get_text(self):
+        return "".join(self._result)
+
+
+@app.post("/api/articles/import")
+async def import_article(
+    request: Request,
+    file: UploadFile = File(...),
+    category_id: str = Form("anleitung"),
+    tags: str = Form(""),
+    user: dict = Depends(get_current_user),
+):
+    """Import article from Scribe export (Markdown, PDF, or HTML)."""
+    require_captain(user)
+
+    filename = file.filename or "upload"
+    content_bytes = await file.read()
+
+    # Max 25MB
+    if len(content_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Datei zu gross (max 25MB)")
+
+    # Parse based on file type
+    if filename.lower().endswith(".md"):
+        content = content_bytes.decode("utf-8")
+        title = content.split("\n")[0].lstrip("# ").strip() or filename
+    elif filename.lower().endswith(".pdf"):
+        import fitz  # PyMuPDF
+        doc = fitz.open(stream=content_bytes, filetype="pdf")
+        pages_text = [page.get_text() for page in doc]
+        content = "\n\n---\n\n".join(pages_text)
+        title = doc.metadata.get("title") or filename.replace(".pdf", "")
+        doc.close()
+    elif filename.lower().endswith(".html") or filename.lower().endswith(".htm"):
+        raw_html = content_bytes.decode("utf-8")
+        extractor = _HTMLTextExtractor()
+        extractor.feed(raw_html)
+        content = extractor.get_text()
+        title = filename.rsplit(".", 1)[0]
+    else:
+        raise HTTPException(status_code=400, detail="Nur .md, .pdf, .html Dateien erlaubt")
+
+    # Auto-categorize from filename convention: [KATEGORIE] - Titel - Datum.ext
+    if filename.startswith("[") and "]" in filename:
+        cat = filename.split("]")[0].lstrip("[").strip().lower()
+        valid_cats = ["troubleshooting", "anleitung", "prozess", "konfiguration", "aufzeichnung"]
+        if cat in valid_cats:
+            category_id = cat
+        # Extract title from filename
+        parts = filename.split("]", 1)[1].rsplit(".", 1)[0]  # Remove extension
+        parts = parts.strip(" -")
+        if " - " in parts:
+            title = parts.rsplit(" - ", 1)[0].strip()  # Remove date suffix
+
+    # Create summary with Claude
+    summary = await generate_summary(content)
+
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else ["scribe-import"]
+
+    article = {
+        "article_id": str(uuid.uuid4()),
+        "title": title,
+        "content": content,
+        "summary": summary,
+        "category_id": category_id,
+        "tags": tag_list,
+        "created_by": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source": "import",
+        "source_filename": filename,
+    }
+
+    await db.articles.insert_one(article)
+    article.pop("_id", None)
+    logger.info("Article imported", extra={"title": title, "source_filename": filename, "user_id": user["user_id"]})
+    return article
 
 # --- Dashboard ---
 @app.get("/api/dashboard/stats")
@@ -499,33 +668,37 @@ Beginne deine Antworten NICHT mit 'Computer hier' oder aehnlichem - antworte dir
     session_id = msg.session_id or f"chat-{user['user_id']}-{str(uuid.uuid4())[:8]}"
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"lcars-{session_id}-{str(uuid.uuid4())[:8]}",
-            system_message=system_message,
-        )
-        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
-
         # Load previous messages for context
         history = await db.chat_history.find(
             {"session_id": session_id, "user_id": user["user_id"]}
         ).sort("created_at", 1).to_list(20)
 
+        # Build messages array for Anthropic API
+        messages = []
         for h in history:
-            if h.get("role") == "user":
-                await chat.send_message(UserMessage(text=h["content"]))
+            role = "user" if h.get("role") == "user" else "assistant"
+            messages.append({"role": role, "content": h["content"]})
 
-        user_message = UserMessage(text=msg.message)
-        response = await chat.send_message(user_message)
+        # Add the new user message
+        messages.append({"role": "user", "content": msg.message})
+
+        response = await anthropic_client.messages.create(
+            model="claude-sonnet-4-5-20250514",
+            max_tokens=4096,
+            system=system_message,
+            messages=messages,
+        )
+        answer = response.content[0].text
 
         now = datetime.now(timezone.utc).isoformat()
         await db.chat_history.insert_many([
             {"session_id": session_id, "user_id": user["user_id"], "role": "user", "content": msg.message, "created_at": now},
-            {"session_id": session_id, "user_id": user["user_id"], "role": "computer", "content": response, "created_at": now},
+            {"session_id": session_id, "user_id": user["user_id"], "role": "computer", "content": answer, "created_at": now},
         ])
 
-        return {"response": response, "session_id": session_id}
+        return {"response": answer, "session_id": session_id}
     except Exception as e:
+        logger.error("Chat error", extra={"error": str(e), "user_id": user["user_id"]})
         raise HTTPException(status_code=500, detail=f"Computer-Fehler: {str(e)}")
 
 @app.get("/api/chat/history")
@@ -547,9 +720,21 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
     sessions = await db.chat_history.aggregate(pipeline).to_list(20)
     return [{"session_id": s["_id"], "last_message": s["last_message"], "created_at": s["created_at"], "message_count": s["count"]} for s in sessions]
 
+# --- Health Endpoint (with DB check) ---
 @app.get("/api/health")
-async def health():
-    return {"status": "online", "stardate": datetime.now(timezone.utc).isoformat(), "ship": "USS Enterprise NCC-1701-D"}
+async def health_check():
+    try:
+        await db.command("ping")
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    return {
+        "status": "healthy" if db_status == "healthy" else "degraded",
+        "database": db_status,
+        "module": "nummer-eins",
+        "stardate": datetime.now(timezone.utc).isoformat(),
+        "ship": "USS Enterprise NCC-1701-D",
+    }
 
 # --- Locations & Tickets (Enterprise Map) ---
 @app.get("/api/locations")
@@ -836,7 +1021,6 @@ async def import_articles_batch(file: UploadFile = File(...), user: dict = Depen
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     """Transcribe audio using OpenAI Whisper - for Captain's Log voice entries."""
-    allowed_types = ["audio/webm", "audio/mp3", "audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg", "audio/m4a", "audio/x-m4a", "video/webm"]
     if file.content_type and not any(t in file.content_type for t in ["audio", "video/webm"]):
         raise HTTPException(status_code=400, detail=f"Nicht unterstuetztes Audio-Format: {file.content_type}")
 
@@ -853,11 +1037,10 @@ async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(ge
             tmp.write(content)
             tmp_path = tmp.name
 
-        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
         with open(tmp_path, "rb") as audio_file:
-            response = await stt.transcribe(
-                file=audio_file,
+            response = await openai_client.audio.transcriptions.create(
                 model="whisper-1",
+                file=audio_file,
                 response_format="json",
                 language="de",
                 prompt="Persoenlicher Logbucheintrag. IT-Dokumentation, Wissensdatenbank, Anleitung, Troubleshooting."
@@ -870,6 +1053,7 @@ async def transcribe_audio(file: UploadFile = File(...), user: dict = Depends(ge
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Transcription error", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail=f"Transkriptionsfehler: {str(e)}")
 
 # --- Stardate calculator ---
@@ -882,4 +1066,3 @@ async def get_stardate():
     year_progress = (now - year_start).total_seconds() / (365.25 * 24 * 3600)
     stardate = 41000 + (now.year - 2023) * 1000 + year_progress * 1000
     return {"stardate": f"{stardate:.1f}", "earth_date": now.isoformat()}
-
