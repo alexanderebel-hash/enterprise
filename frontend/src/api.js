@@ -124,4 +124,14 @@ export const api = {
   },
 
   getStardate: () => request('/api/stardate'),
+
+  // Betroffenenrechte (DSGVO)
+  exportUserData: (token) =>
+    request('/api/user/data-export', { headers: getHeaders(token) }),
+
+  deleteChatSession: (token, sessionId) =>
+    request(`/api/chat/session/${sessionId}`, { method: 'DELETE', headers: getHeaders(token) }),
+
+  deleteAllChats: (token) =>
+    request('/api/chat/all', { method: 'DELETE', headers: getHeaders(token) }),
 };

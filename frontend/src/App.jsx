@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import LCARSLayout from './components/LCARSLayout';
@@ -8,6 +9,7 @@ import KnowledgeBase from './components/KnowledgeBase';
 import ComputerChat from './components/ComputerChat';
 import ArticleEditor from './components/ArticleEditor';
 import EnterpriseMap from './components/EnterpriseMap';
+import Datenschutz from './components/Datenschutz';
 
 function AppContent() {
   const { user, token, checkAuth } = useAuth();
@@ -64,6 +66,8 @@ function AppContent() {
         return <KnowledgeBase onNavigate={navigate} />;
       case 'chat':
         return <ComputerChat />;
+      case 'datenschutz':
+        return <Datenschutz onNavigate={navigate} />;
       case 'create':
         if (user?.role !== 'captain') {
           return <Dashboard onNavigate={navigate} />;
@@ -83,9 +87,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

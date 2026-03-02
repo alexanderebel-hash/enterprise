@@ -26,6 +26,16 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from pythonjsonlogger import jsonlogger
 
+# --- Sentry (optional — only if SENTRY_DSN is set) ---
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment=os.environ.get("ENVIRONMENT", "production"),
+    )
+
 # --- Structured Logging ---
 handler = logging.StreamHandler()
 handler.setFormatter(jsonlogger.JsonFormatter(
@@ -749,6 +759,49 @@ async def get_chat_sessions(user: dict = Depends(get_current_user)):
     ]
     sessions = await db.chat_history.aggregate(pipeline).to_list(20)
     return [{"session_id": s["_id"], "last_message": s["last_message"], "created_at": s["created_at"], "message_count": s["count"]} for s in sessions]
+
+# --- Betroffenenrechte (DSGVO Art. 15-17, 20) ---
+@app.get("/api/user/data-export")
+async def export_user_data(user: dict = Depends(get_current_user)):
+    """DSGVO Art. 15/20: Auskunft und Datenportabilitaet."""
+    user_data = await db.users.find_one(
+        {"user_id": user["user_id"]}, {"_id": 0, "password_hash": 0}
+    )
+    chat_messages = await db.chat_history.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", 1).to_list(10000)
+    articles_created = await db.articles.find(
+        {"created_by": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    tickets_created = await db.tickets.find(
+        {"created_by": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+
+    return {
+        "export_date": datetime.now(timezone.utc).isoformat(),
+        "user_profile": user_data,
+        "chat_history": chat_messages,
+        "articles_created": articles_created,
+        "tickets_created": tickets_created,
+    }
+
+@app.delete("/api/chat/session/{session_id}")
+async def delete_chat_session(session_id: str, user: dict = Depends(get_current_user)):
+    """DSGVO Art. 17: Einzelne Chat-Sitzung loeschen."""
+    result = await db.chat_history.delete_many(
+        {"session_id": session_id, "user_id": user["user_id"]}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Sitzung nicht gefunden")
+    logger.info("Chat session deleted", extra={"session_id": session_id, "user_id": user["user_id"]})
+    return {"message": "Sitzung geloescht", "deleted_messages": result.deleted_count}
+
+@app.delete("/api/chat/all")
+async def delete_all_chat_history(user: dict = Depends(get_current_user)):
+    """DSGVO Art. 17: Alle Chat-Daten des Users loeschen."""
+    result = await db.chat_history.delete_many({"user_id": user["user_id"]})
+    logger.info("All chat history deleted", extra={"user_id": user["user_id"], "deleted": result.deleted_count})
+    return {"message": "Alle Chat-Daten geloescht", "deleted_messages": result.deleted_count}
 
 # --- Health Endpoint (with DB check) ---
 @app.get("/api/health")

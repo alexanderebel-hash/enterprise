@@ -120,6 +120,7 @@ export default function ComputerChat() {
 
       <div className="text-lcars-gray font-lcars text-[10px] tracking-[0.3em] mb-3">
         SPRACHSCHNITTSTELLE AKTIV - WISSENSDATENBANK VERBUNDEN
+        <span className="ml-4 text-lcars-blue/60">KI-GESTUETZT: CLAUDE (ANTHROPIC) | KEINE GESUNDHEITSDATEN EINGEBEN</span>
       </div>
 
       <div className="flex-1 flex gap-4 overflow-hidden">

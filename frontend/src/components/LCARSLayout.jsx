@@ -156,7 +156,15 @@ export default function LCARSLayout({ children, activePage, onNavigate }) {
           <span className="text-black font-lcars text-[9px] tracking-widest pl-4 leading-6">SEKTION 31</span>
         </div>
         <div className="flex-1 flex gap-1">
-          <div className="bg-lcars-pink flex-1" />
+          <div className="bg-lcars-pink flex-1 flex items-center justify-end pr-3">
+            <button
+              onClick={() => { play('navigate'); onNavigate('datenschutz'); }}
+              className="text-black/60 hover:text-black font-lcars text-[8px] tracking-widest transition-colors"
+              data-testid="footer-datenschutz"
+            >
+              DATENSCHUTZ
+            </button>
+          </div>
           <div className="bg-lcars-tan w-20 hidden sm:block" />
           <div className="bg-lcars-blue w-32 flex items-center justify-center">
             <span className="text-black font-lcars text-[9px] tracking-widest">ALPHA QUADRANT</span>
